@@ -1,0 +1,43 @@
+<?php
+/* install or UPDATE functions for request modules
+*/
+
+function gare_uninstall() {
+
+	drupal_uninstall_schema('gare');
+	db_query("DELETE a FROM {node_revisions} as a, {node} as n WHERE n.type='gare' AND  n.nid=a.nid");
+	db_query("DELETE a FROM ".query_status()." as a, {node} as n WHERE n.type='gare' AND  n.nid=a.nid");
+	db_query("DELETE a FROM ".query_aggregation()." as a, {node} as n WHERE n.type='gare' AND  n.nid=a.nid");
+	db_query("DELETE a FROM {comments} as a, {node} as n WHERE n.type='gare' AND  n.nid=a.nid");
+
+	db_query("DELETE FROM {node} WHERE type='gare'");
+
+}
+
+function gare_install() {
+	drupal_install_schema('gare');
+
+}
+
+
+function gare_schema() {
+	include_once('gare_aux_function.php.inc');
+
+	$schema[_GARE_TABLE] = array(
+	    'fields' => array(
+		 'nid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'),
+		 'vid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'),
+		 'oldID' =>array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'),
+		 'value' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'),
+		 'qta' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'),
+		 'idARS' => array('description' => 'Id ARS gara',
+	     			'type' => 'varchar', 'length' => '50', 'not null' => FALSE, 'default' => '0'),
+		 'idCSC' => array('description' => 'Id gara CSC ',
+	     			'type' => 'varchar', 'length' => '50', 'not null' => FALSE, 'default' => '0'),
+		 'CND' => array('type' => 'varchar', 'length' => '50', 'not null' => FALSE, 'default' => 'Z99')),
+	    'primary key' => array('nid','vid'),
+	);
+
+	return $schema;
+}
+

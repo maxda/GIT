@@ -1,0 +1,8 @@
+; $Id$
+name = gare
+description = Modulo per la grestione delle gare; Tecniche Biomedicali. 
+core = 6.x
+dependencies[] = gratcore
+package =  GRAT
+version = 6.x-0.1
+

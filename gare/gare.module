@@ -1,0 +1,865 @@
+<?php
+// $Id$
+
+include_once("gare_aux_function.php.inc");
+include_once(drupal_get_path('module','gratcore').'/gratcore.php.inc'); //funzioni di aggregazione
+
+/**
+ *
+ Modulo per la gestione delle gare.
+ Si basa sulla pianificazione preventiva di aggregati di richieste per mezzo del CND
+
+ */
+
+
+
+
+function gare_help($path, $arg) {
+    $output = '';
+    switch ($path) {
+        case "admin/help#gare":
+            $output = '<p>'.  t("modulo principale per la gestione delle gare") .'</p>';
+            break;
+    }
+    return $output;
+} // function
+
+
+/**
+ * Valid permissions for this module
+ * @return array An array of valid permissions for the  module
+ */
+
+function gare_perm() {
+    return gare_permission();
+}
+
+function gare_access($op, $node) {
+
+    global $user;
+
+
+
+    $auth=FALSE;
+
+    switch ($op) {
+        case 'update':
+            $auth=user_access(_AUTH_CHANGE_HI) || (user_access(_AUTH_OWNER) && $user->uid==$nose->uid) || user_access(_ROOT_OWNER);
+            break;
+        case 'create':
+            $auth=user_access(_AUTH_CHANGE_LOW) || user_access(_ROOT_OWNER);
+            break;
+        case 'delete':
+            $auth = (user_access(_AUTH_OWNER)&& $user->uid==$nose->uid) || user_access(_ROOT_OWNER);
+            break;
+        case 'view'  :
+            $auth = user_access(_AUTH_VIEW);
+            break;
+        default:
+            return FALSE;
+    }
+
+    return $auth;;
+
+}
+
+
+
+
+
+/*-----------------------------node part -----------------------------------------*/
+
+function gare_node_name() {
+    return 'gare' ;
+}
+
+
+function gare_node_info() {
+    return array(
+    'gare' => array(
+    'name' => t('Gare'),
+    'module' => 'gare',
+    'description' => t("Scheda di gestione gare"),
+    'has_title' => TRUE,
+    'title_label' => t('Gare'),
+    'has_body' => TRUE,
+    'body_label' => t('Info gestione gare;'),
+    )
+    );
+}
+
+
+/********************************************************************************************************
+			SETTAGGIO EVENTI (TRIGGER)
+*******************************************************************************************************/
+
+// implementazione trigger
+function gare_hook_info() {
+    return array(
+    'gare'=> array(						//tab name
+    'gare'=>array( 				//module name
+    'pubblicazione_gara'=>array('runs when'=>'viene pubblicato il capitolato '),
+    'capitolato_tecnico'=>array('runs when'=>'viene inserito il capitolato tecnico'),
+    ),
+    ),
+    );
+}
+
+// selezione delle azioni associabili all'evento
+function gare_action_info_alter(&$info) {
+    foreach ($info as $type => $data) {
+        if (stripos($type, "user_") === 0 || stripos($type, "system_") === 0) { //seleziona solo le azioni utente e di sistema
+            if (isset($info[$type]['hooks']['application'])) {
+                array_merge($info[$type]['hooks']['gare'], array('pubblicazione_gara', 'capitolato_tecnico'));
+            }
+            else {
+                $info[$type]['hooks']['gare'] = array('pubblicazione_gara', 'capitolato_tecnico',);
+            }
+        }
+    }
+}
+
+// hook per attivare l'azione
+function gare_gare($op, $node) {
+// We support a subset of operations.
+    if (!in_array($op, array('pubblicazione_gara', 'capitolato_tecnico'))) {
+        return;
+    }
+    $aids = _trigger_get_hook_aids('gare', $op);
+    $context = array(
+        'hook' => 'gare',
+        'op' => $op,
+        'node' => $node,
+    );
+    actions_do(array_keys($aids), $node, $context);
+}
+
+/********************************************************************************************************
+			SETTAGGIO AZIONI (TRIGGER)
+*******************************************************************************************************/
+//TODO: implementare le azioni
+function gare_action_info() {
+    return array(
+    'gare_set_published_action' => array(
+    'description' => t('Challenge published'),
+    'type' => 'node',
+    'configurable' => TRUE,
+    'hooks' => array(
+    'nodeapi' => array('insert', 'update'),
+    )
+    )
+    );
+}
+
+function gare_set_published_action(&$node,$context) {
+
+}
+
+/********************************************************************************************************/
+function gare_form_alter(&$form, &$form_state, $form_id) {
+// inserimento del form di assegnazione ad una gara
+    if($form_id=='request_listcheck') {
+    //TODO: inserimento di add_to_gare_form
+        $form['add_to_gara']=add_to_gare_form($form_state);
+    }
+
+}
+
+function gare_nodeapi(&$node, $op, $a3,$a4) {
+    global $user;
+    //if ($node->type!='gare') return;
+    switch ($node->type) {
+        case 'gare':
+            switch($op) {
+                case 'presave':
+                    if (isset($node->info))$node->body=serialize($node->info);
+                case 'insert':
+                case 'update':                    
+                // verifica se ci sono nuovi file per notificare l'evento
+                    $new_files=FALSE;
+                    if (isset($node->files))
+                        foreach($node->files as $fid => $file) {
+                            $new_files= $new_files || (object)$file->new;
+                        }
+                    if ($new_files) {
+                        module_invoke_all('gare', 'capitolato_tecnico', $node); //action starter
+                    }
+                    break;
+
+            }//end gare switch
+            break;
+        case 'request':
+            add_request_gare_interface($node,$op,$a3,$a4);
+            break;
+    }
+
+}
+
+/**
+ * inserisce degli elementi di gestione collegamento alle gare nell'interfaccia delle richieste
+ * @param <object> $node nodo da modificare
+ * @return <type>
+ */
+function add_request_gare_interface(&$node,$op,$a3,$a4) {
+    global $user;
+    switch ($op) {
+ /*       case 'alter':break; // Html output ready we can alter it
+        case 'presave': break;
+        case 'delete':break;
+        case 'delete revision':break;          
+        case 'load':break;
+        case 'prepare':break;
+        case 'prepare translation':break;
+        case 'print':break;
+        case 'search result':break;
+        case 'update index':break;
+        case 'validate':break;
+ */
+        case 'load':  //inserisce i riferimenti della gara a cui è associata la richiesta
+            $gid=get_aggregator($node->nid,'gare');
+            if ($gid && ! isset($node->gare))$node->gare=$gid;
+            break;
+        case 'insert':
+        case 'update':
+            break;
+        case 'view':
+            if (isset($node->gare)) { //inserisce il link alla gara a cui è associata la richiesta
+                insert_aggregation($node->content,$node->gare,$a3);
+            }
+            else if (!$a3){ // not in teaser
+            ////se la richiesta non è associata a una gara inserisce il link per farlo
+                if ($node->cud)
+                //$link=l('Attiva gara o procedura di acquisto', 'node/'.$node->nid,
+                //        array('attributes'=>array('dialogModal'=>'gare/addRequest/'.$node->nid.'/'.$node->cud),
+                //        'fragment'=>'-'));ù
+                    if (user_access(_AUTH_CHANGE_HI) || user_access(_ROOT_OWNER))$node->content['addGara']=array('#value'=>drupal_get_form('add_to_gare_form',$node->nid,$node->cud));
+                else
+                    $node->content['addGara']=array('#value'=>'Attiva gara o procedura di acquisto (manca  il CND!)');
+
+            }
+            break;
+    }
+
+
+}
+
+function gare_form(&$node) {
+    global $user;
+    $type = node_get_types('type', $node);
+    $w=0;
+    $form['info']=array(
+        '#type'=>'fieldset',
+        '#collapsible'=>TRUE,
+        '#collapsed'=>(isset($node->idARS) && isset($node->idCSC) && isset($node->DSC_link) && isset($node->CND) ),
+        '#title'=>'Informazioni generiche',
+        '#prefix' => '<div class="container-inline">',
+        '#suffix'=>'</div>',
+        '#weight'=>$w++,
+    );
+    $form['info']['ID']=array(
+        '#type'=>'item',
+        '#title'=> 'Identificativo gara',
+        '#value'=>$node->nid,
+        '#suffix'=>'<br>',
+    );
+
+    /*$form['info']['idARS']=array(
+        '#type'=>'textfield',
+        '#default_value'=>($node->idARS?$node->idARS:''),
+        '#title'=>'Id assegnato dall\'A.R.S.',
+        '#size'=> 20,
+    );*/
+    $form['info']['idCSC']=array(
+        '#type'=>'textfield',
+        '#default_value'=>($node->idCSC?$node->idCSC:''),
+        '#title'=>'Id assegnato dal D.S.C.',
+        '#size'=> 10,
+        '#suffix'=>'<br>',
+        '#prefix'=>'<table><tr><td>',
+        '#suffix'=>'</td>'   
+        );
+    $form['info']['DSC_link']=array(
+        '#type'=>'textfield',
+        '#parents'=>array('info','DSC_link'),
+        '#default_value'=>($node->DSC_link?$node->DSC_link:''),
+        '#title'=>'Link ai documenti DSC',
+        '#size'=> 40,
+        '#suffix'=>'<br>',
+        '#suffix'=>'</td></tr></table>',
+        '#prefix'=>'<td>'   
+        );
+    $form['info']['CND']=array(
+        '#type'=>'textfield',
+        '#default_value'=>($node->CND?$node->CND:'Z99'),
+        '#title'=>'Codice CND',
+        '#size'=> 150,
+        '#autocomplete_path' => 'cud/autocomplete',
+    );
+
+
+    $form['title']=array(
+        '#type'=>'textfield',
+        '#default_value'=>$node->title,
+        '#required'=>TRUE,
+        '#title'=>'nome gara',
+        '#weight'=>$w++,
+    );
+    $form['value']=array(
+        '#type'=>'textfield',
+        '#default_value'=>($node->value?$node->value:0),
+        '#required'=>TRUE,
+        '#title'=>'Valore (&euro;)',
+        '#description'=>'Valore stiamto iva esclusa',
+        '#weight'=>$w++,
+        '#size'=> 20,
+        '#prefix' => '<div class="container-inline">',
+    );
+    $form['qta']=array(
+        '#type'=>'textfield',
+        '#default_value'=>($node->qta?$node->qta:0),
+        '#required'=>TRUE,
+        '#title'=>'Quantit&agrave;',
+        '#weight'=>$w++,
+        '#size'=> 10,
+        '#suffix'=>'</div>',
+    );
+    $form['description']=array(
+        '#type'=>'textarea',
+        '#parents'=>array('info','description'),
+        '#default_value'=>$node->description,
+        '#description'=>'descrizione dettagliata della tipologia di gara',
+        '#required'=>FALSE,
+        '#title'=>'Descrizione gara',
+        '#weight'=>$w++,
+        '#rows'=>3,
+    );
+    $form['requests']=array(
+        '#type'=>'fieldset',
+        '#collapsible'=>TRUE,
+        '#collapsed'=>FALSE,
+        '#title'=>'Richieste associate',
+        '#weight'=>$w++,
+    );
+/*--------------------------------------NEW--------------------------------------*/
+    $form['requests']=requests_list($node,TRUE);
+    $form['requests']['#weight']=$w++;
+/*--------------------------------------END NEW--------------------------------------*/
+/*	$form['requests']['list']=array('#value'=>view_requests($node,TRUE)); */
+
+    return $form;
+}
+
+
+
+function gare_insert($node) {
+    db_query("INSERT INTO "._GARE_TABLE." (nid,vid,idARS,idCSC,CND,value,qta,oldID) VALUES (%d,%d,'%s','%s','%s',%d,%d,%d)",
+        $node->nid,$node->vid,$node->idARS,$node->idCSC,$node->CND,$node->value,$node->qta,$node->oldID);
+    if (get_status($node->nid)==0) set_status($node->nid,_PROPOSED);
+/* TODO: debug
+
+*/
+
+}
+
+function gare_delete($node) {
+
+    db_query("DELETE  FROM {node_revisions} WHERE nid=%d",$node->nid );
+    delete_status($node->nid );
+    db_query("DELETE  FROM ".query_aggregation()." WHERE nid=%d",$node->nid );
+    db_query("DELETE  FROM "._GARE_TABLE." WHERE nid=%d",$node->nid );
+
+    db_query("DELETE FROM {node} WHERE  nid=%d",$node->nid );
+
+/* TODO: debug
+
+*/
+}
+
+function gare_update($node) {
+    global $user;
+    if ($node->revision)
+        gare_insert($node);
+    else
+        db_query("UPDATE "._GARE_TABLE." SET idARS='%s', idCSC='%s', CND='%s', value=%d, qta=%d, oldID=%d
+  		  WHERE nid=%d AND vid=%d ",
+            $node->idARS,$node->idCSC,$node->CND,$node->value,$node->qta,$node->oldID,
+            // WHERE clause
+            $node->nid,$node->vid);
+/*--------------------------------------NEW--------------------------------------*/
+    edit_request($node); // verifica le richieste aggregate
+}
+
+
+/* funzione per l'aggiornamento delle richieste modificate */
+function edit_request($node) {
+
+    if (isset($node->requests)) {
+        foreach($node->requests as $nid2 => $val) {
+            if (isset($val['edit']['what'])) {
+
+                switch ($val['edit']['what']) {
+                    case 0:break; //mantieni
+                    case 1:
+                        if (!delete_aggregation($node->nid,$nid2))
+                            drupal_set_message('la richiesta non &egrave; stata tolta dall\'aggregazione!','warning'); //cancella aggregazione
+                        break;
+                    case 2:// sposta su altra gara
+                    //                    print_r($node);
+                        if (is_numeric($val['edit']['where'])) {
+                            if (!delete_aggregation($node->nid,$nid2))
+                                drupal_set_message('la richiesta non &egrave; stata tolta dall\'aggregazione!','warning');
+                            else
+                                aggregate_node($val['edit']['where'],$nid2);
+                        }
+                        break;
+                }
+            }
+        }
+    }
+}
+/*--------------------------------------END NEW--------------------------------------*/
+
+function gare_load($node) {
+
+    $additions=db_fetch_object(db_query("SELECT CND,idARS, idCSC,value,qta, oldID FROM "._GARE_TABLE." WHERE nid=%d AND vid=%d", $node->nid,$node->vid));
+    $qy=db_query("SELECT struct, qta, (r.value * IF(r.value_vat=0,"._WITH_IVA.",1)) as value, 
+                (r.cost * IF(r.cost_vat=0,"._WITH_IVA.",1)) as cost,
+                n.title as title, n.nid as nid FROM "._REQUESTS_TABLE." r
+   		INNER JOIN {node} n ON n.nid=r.nid AND n.vid=r.vid
+   		INNER JOIN ".query_aggregation($node->nid,'gare')." ag ON n.nid=ag.nid2 "
+    );
+/* $qy=db_query("SELECT struct, qta, value, value_vat, n.title as title, n.nid as nid FROM "._REQUESTS_TABLE." r
+  		INNER JOIN {node} n ON n.nid=r.nid AND n.vid=r.vid
+  		INNER JOIN ".query_aggregation($node->nid,'gare')." ag ON n.nid=ag.nid2 "
+  		);
+*/
+    while ($res=db_fetch_object($qy)) {
+        if(!isset($additions->requests))$additions->requests=array();
+        $additions->requests[$res->nid]=(array)$res;
+    }
+    $additions->status=get_status($node->nid);
+    //verifica se il body è usato come contenitore
+    $info=unserialize($node->body);
+    if (is_array($info)) {
+        $additions->description=$info['description'];
+        $additions->DSC_link=$info['DSC_link'];
+    }
+    else
+        $additions->description=$node->body;
+    return $additions;
+}
+
+
+
+function gare_view($node, $teaser = FALSE, $page = FALSE) {
+    global $user;
+    $w=0;
+    $node = node_prepare($node, $teaser);
+    $node->content['body']='';
+    $DSC_link=check_url($node->DSC_link);
+    if($DSC_link) $DSC_link='<a href="'.$DSC_link.'" target="_blank">'.$node->idCSC.'</a>';
+    else {
+/* ricerca automatica sul sito DSC tramite ID   */     
+//  if (isset($node->idCSC)) {
+//            $headers ['Content-Type'] = 'application/x-www-form-urlencoded';
+//            $query='POSTDATA=sboxra='.$node->idCSC.'&sboxra=%25&sboxra=Ricerca+per+numero+di+adozione&sboxra=%28GG%2FMM%2FAAAA%29&sboxra=%28GG%2FMM%2FAAAA%29&sbm3=Cerca';
+//            $response=drupal_http_request('http://www.csc.sanita.fvg.it/servlet/page?_pageid=72&_dad=pcsc&_schema=PCSC&_act=17',$headers,'POST',$query);
+//        }
+//        else
+           $DSC_link=$node->idCSC;
+   }
+    $info ='Id Gara:<b>'.$node->nid.(($node->oldID)?' Vecchio ID:'.$node->oldID:'').'</b><br>'.
+        '<span class="description">Codice CND:</span><bold>'.get_cud_description($node->CND).'</bold><br>'.
+        (isset($node->idARS)?'<span class="description">Id ARS:</span>'.$node->idARS.'<br>':'').
+        '<span class="description">Id DSC:</span>'.$DSC_link.'<br>'.
+        '<small>Valore:</small><big><b> '.currencyFormat($node->value).'</b></big> (iva inclusa);&nbsp;&nbsp; <small>Quantit&agrave;: </small><big><b>'.$node->qta.'</b></big><br>';;
+
+
+    $node->content['body'][]=array('#value'=>$info,'#weight'=>$w++);
+    $node->content['extra'][]=array('#type'=>'item','#title'=>'Descrizione gara','#value'=>$node->description,'#weight'=>$w++);
+
+/*--------------------------------------NEW--------------------------------------*/
+    $list=requests_list($node,FALSE);
+    $node->content['requests']=array('#type'=> 'fieldset','#weight'=>$w++);
+    $node->content['requests']['list']=array('#value'=>drupal_render($list));
+/*--------------------------------------END NEW--------------------------------------*/
+
+    return $node;
+}
+
+
+function view_requests($node,$edit=FALSE) {
+//  drupal_add_css(drupal_get_path('module','gratcore').'/gratCore.css','module');
+    $value=0;
+    $count=0;
+    if (isset($node->requests)) {
+        foreach($node->requests as $key => $val) {
+        //costruzione link con pulsante per la cancellazione
+            $del=l('Cancella','gare/aggregator/'.$node->nid.'/delete/'.$key,
+                array('attributes'=>array(
+                'class'=>'i_delete',
+                'onclick'=>'return confirm("vuoi eliminare la richiesta da questa gara?");'
+                ),
+                )
+            );
+            $rows[]=array(info_popup($key),
+                nl($key),
+                $val['qta'],
+                currencyFormat($val['value']),
+                get_structure($val['struct']),request_status_message(get_status($val['nid'])),$edit?$del:'');
+            $value+=$val['value'];
+            $count+=$val['qta'];
+        }
+        $rows[]=array('<h2>totale</h2>','',$count,'<h2>'.currencyFormat($value).'</h2>(iva inclusa)','');
+    }
+    if (isset($rows))
+        return theme('table',array('Rif','descrizione','quantit&agrave;','stima','destinatario','stato',''),$rows);
+    else
+        return '';
+}
+
+/*--------------------------------------NEW--------------------------------------*/
+function requests_list($node,$edit=FALSE) {
+    global $user;
+//  drupal_add_css(drupal_get_path('module','gratcore').'/gratCore.css','module');
+    $value=0;
+    $count=0;
+    if (isset($node->requests)) {
+        $form['requests']=array(
+            '#theme'=>'requests_list',
+            '#tree'=>TRUE,
+        );
+        foreach($node->requests as $key => $val) {
+
+        //composizione del campo di edit
+            if ($edit) {
+                $edit_field=array(
+                    '#type'=>'fieldset',
+                    '#title'=> 'modifica',
+                    //                   '#tree'=>FALSE,
+                );
+                $edit_field['what']=array(
+                    '#type'=>'radios',
+                    '#options'=>array(0=>'mantieni',1=>'elimina',2=>'sposta su'),
+                    '#default_value'=>10,
+                );
+                $edit_field['where']=array(
+                    '#type'=>'textfield',
+                    '#default_value'=>'0',
+                    '#autocomplete_path'=>'gare/idautocomplete',
+                    '#size'=> 10,
+                );
+            }
+            else
+                $edit_field=array('#value'=>'');
+            $struct=(is_array($user->struct)?$user->struct:array($user->struct));
+            $show=in_array($val['struct'],$struct) && !in_array(0,$struct)&& user_access(_VIEW_RCQ)
+                  || user_access(_MANGE_RCQ) ||user_access(_FULL_MANGE_RCQ) ;
+            // configurazione dei campi della tabella
+            $form['requests'][$val['nid']]['key']=array('#value'=> info_popup($key));
+            $form['requests'][$val['nid']]['title']=array('#value'=>nl($key));
+            $form['requests'][$val['nid']]['qta']=array('#value'=>($show?$val['qta']:'XX'));
+            $form['requests'][$val['nid']]['value']=array('#value'=>currencyFormat($show?$val['value']:'XXXXX'));
+            $form['requests'][$val['nid']]['cost']=array('#value'=>currencyFormat($show?$val['cost']:'XXXXX'));
+            $form['requests'][$val['nid']]['struct']=array('#value'=>implode(get_structure($val['struct']),','));
+            $form['requests'][$val['nid']]['status']=array('#value'=>request_status_message(get_status($val['nid'])));
+            $form['requests'][$val['nid']]['edit']=$edit_field;
+            $value+=$val['value'];
+            $count+=$val['qta'];
+            $cost+=$val['cost'];
+        }
+        $form['requests']['#total_count']=array('#value'=>$count);
+        $form['requests']['#total_value']=array('#value'=>currencyFormat($value));
+        $form['requests']['#total_cost']=array('#value'=>currencyFormat($cost));
+    }
+    //	return theme('table',array('Rif','descrizione','quantit&agrave;','stima','destinatario','stato',''),$rows);
+    return $form;
+}
+// formatta la griglia delle richieste
+function theme_requests_list($form) {
+    $header=array('Rif','descrizione','quantit&agrave;','stima','costo','destinatario','stato','');
+    foreach(element_children($form) as $key) {
+        $rows[]=array(
+            drupal_render($form[$key]['key']),
+            drupal_render($form[$key]['title']),
+            drupal_render($form[$key]['qta']),
+            drupal_render($form[$key]['value']),
+            drupal_render($form[$key]['cost']),
+            drupal_render($form[$key]['struct']),
+            drupal_render($form[$key]['status']),
+            drupal_render($form[$key]['edit']),
+        );
+    }
+    $rows[]=array('Totale','', drupal_render( $form['#total_count']),drupal_render( $form['#total_value']),drupal_render( $form['#total_cost']),'','','');
+    $output= theme('table',$header,$rows);
+    $output.=drupal_render($form);
+    return $output;
+}
+/*--------------------------------------END NEW--------------------------------------*/
+
+
+
+/*-----------------------------BLOCK PART-----------------------------------------*/
+
+function gare_block($op='list', $delta=0, $edit=array() ) {
+
+}
+
+
+/*------------------------------------menu hook-----------------------------------
+ **/
+function gare_menu() {
+
+    $items=array();
+
+
+    $items['gare'] = array(
+        'title' => 'Gare',
+        'access arguments' => array( _AUTH_CHANGE_LOW),
+        'page callback' => 'gare_list_form',
+      //  'page callback' => 'drupal_get_form',
+      //  'page arguments' => array('gare_list_form'),
+        'file'=>'gare_manager.php.inc',
+    );
+    $items['gare/list'] = array(
+        'title' => 'Aggregazioni di gara',
+        'page callback' => 'gare_list_form',
+        //		'file'=>'gare_manager.php.inc',
+        //		'page arguments' => array('gare_list_form'),
+        'access arguments' => array( _AUTH_CHANGE_LOW),
+
+    );
+
+
+    $items['gare/aggregator'] = array(
+        'title' => 'Raggruppatore richieste',
+        //		'page callback' => 'drupal_get_form',
+        'page arguments' => array('aggregate_form'),
+        'file'=>'aggregate_form.php.inc',
+        'access arguments' => array( _AUTH_CHANGE_HI),
+    );
+
+
+    $items['gare/aggregator/%/delete/%'] = array(
+        'title' => 'cancella ',
+        'page callback' => 'delete_aggregate_link',
+        'page arguments' => array( 2,4 ),
+        'type' => MENU_CALLBACK,
+        'file'=>'gare_manager.php.inc',
+        'access arguments' => array( _AUTH_CHANGE_HI),
+    );
+    $items['gare/idautocomplete'] = array(
+        'page callback' => 'autocomplete_GaraID',
+        'type' => MENU_CALLBACK,
+        'access arguments' => array( _AUTH_VIEW),
+    );
+
+     /* node menu addings */
+
+/*    foreach(gare_status_message() as $key => $label){
+	   $items['node/%node/close'] = array(
+	     'title' => 'chiudi',
+	     'title arguments' => array(1),
+		 'page callback' => 'close_gare',
+		 'page arguments' => array(1),
+		 'access callback' => 'user_access',
+	     'access arguments' => array(_AUTH_OWNER),
+	     'type' => MENU_LOCAL_TASK,
+	     'weight' => $w++);
+	}*/
+
+    return $items;
+}
+
+
+
+function gare_list_form() {
+    include_once('gare_manager.php.inc');
+    //	$output=drupal_get_form('gare_list_filter');
+    $output=drupal_get_form('gare_list');
+    return $output;
+}
+
+
+function close_gare($nid) {
+    set_status($nid,_EXPIRED);
+    return node_page_view($nid);
+}
+
+
+function gare_theme() {
+    return array(
+    'aggregate_form' => array(
+    'arguments' => array('form' => NULL),
+    ),
+    'gare_list' => array(
+    'arguments' => array('form' => NULL),
+    ),
+    'requests_list' => array(
+    'arguments' => array('form' => NULL),
+    ),
+
+    );
+}
+
+
+function autocomplete_GaraID($string = NULL) {
+    $matches = array();
+    $filter='';
+    if ($string) {
+        if (is_numeric($string)) {
+        //	filtra per id
+            $filter =' nid >='.$string;
+        }
+        else if (is_string($string)) {
+            // filtra per descrizione
+                foreach(explode(' ',$string) as $key => $val) $filter.=($filter<>''?' AND ':'')."LOWER(title) LIKE LOWER('%%".$val."%%')";
+            }
+        $result = db_query_range("SELECT nid, title FROM {node} WHERE type='gare' ".($filter<>''?' AND '.$filter:'')." ORDER BY nid ", 20);
+        while ($gara = db_fetch_object($result)) {
+            $matches[$gara->nid] = '<small>Id gara:<b>'.$gara->nid.'</b> : '.$gara->title.'</small>';
+        }
+    }
+    drupal_json($matches);
+}
+
+
+/*  ---------------------- other functions ----------------------------------------- */
+/* summary hook called by gratCore hook_summary
+	return block with title description and content*/
+function gare_summary() {
+    $block['title']='Gare';
+    $block['description']='Sommario delle gare.';
+    $block['content']='';
+    return $block;
+}
+
+function add_to_gare_form(&$form_state,$request=NULL,$CND=NULL) {
+
+    $form['gara_box']=array(
+        '#type'=>'fieldset',
+        '#title'=> 'Raggruppamenti di gara',
+        '#collapsible'=>TRUE,
+        '#attributes'=>array('class'=>'command'),
+        '#collapsed'=>TRUE
+    );
+
+    if(isset($CND)) {
+        $form['gara_box']['CND']=array(
+            '#type'=>'hidden',
+            '#value'=>$CND,
+        );
+
+    } else {
+        $form['gara_box']['CND']=array(
+            '#type'=>'textfield',
+            '#tilte'=>'Codice CND della richiesta',
+            '#default_value'=>'',
+            '#autocomplete_path'=>'cud/autocomplete',
+            '#element_validate'=>array('validate_cnd'),
+        );
+    }
+    $form['gara_box']['what']=array(
+        '#type'=>'radios',
+        '#options'=>array(0=>'Nuovo raggruppamento',1=>'Raggruppamento esistente'),
+        '#description'=>'I nuvi raggruppamenti di gara prendono il nome della richiesta, per i raggruppamenti esistenti selezionare quello di interesse.',
+        '#default_value'=>1,
+    );
+    $form['gara_box']['where']=array(
+        '#type'=>'textfield',
+        '#tilte'=>'Cerca raggruppamento esistente',
+        '#description'=>'Raggruppamento di gara o procedura a cui assegnare la richiesta (ID o ricerca nella lista)',
+        '#default_value'=>'',
+        '#element_validate'=>array('validate_gara'),
+        '#autocomplete_path'=>'gare/idautocomplete',
+        //'#size'=> 20,
+    );
+    $form['gara_box']['submit']=array(
+        '#type'=>'submit',
+        '#value'=>'Assegna',
+        '#attributes'=>array('onClick'=>' $(this).parents(\'.qtip\').qtip(\'hide\') ;'),
+        '#submit'=>array('add_to_gare_submit'),
+    );
+    if (isset($request))
+        $form['gara_box']['request']=array(
+            '#type'=>'hidden',
+            '#value'=>$request,
+        );
+
+    return $form;
+}
+
+function validate_gara($element,&$form_state) {
+    if ($form_state['clicked_button']['#value']<>'Assegna') return;
+    if ($form_state['values']['what']==1)
+        if ($form_state['values']['where']=='')
+            form_error($element,'Va indicato il raggruppamento a cui assegnare la richiesta');
+        else {
+            $node=node_load($form_state['values']['where']);
+            if (!$node || $node->type<>'gare')
+                form_error($element,'Non esiste questo ragguppamento ID:'.$form_state['values']['where']);
+        }
+}
+
+function validate_cnd($element,&$form_state) {
+    if ($form_state['clicked_button']['#value']<>'Assegna') return;
+    if ($form_state['values']['what']==0) {
+        if ($form_state['values']['CND']=='')
+            form_error($element,'Va indicato il CND (Z99 se non &egrave classificabile) ');
+    }
+}
+
+function add_to_gare_submit($form, &$form_state) {
+    $values=$op=$form_state['values'];
+    $op=$form_state['values']['op'];
+    switch ($op) {
+        case 'Assegna':
+        //TODO: controllare quando è nella lista delle richieste
+        //if($form_id=='request_listcheck')
+            include_once('aggregate_form.php.inc');
+            // controlla se è su una richiesta o sulla lista delle richieste
+            if ($values['form_id']=='request_listcheck' && isset($values['refs']))
+                $refs=$values['refs'];
+            else
+                $refs=array($values['request']=>1);
+
+            if($values['what']==0) // nuovo raggruppamento
+            {
+                $gid=0;
+                foreach($refs as $nid => $set) if ($set <> 0) {
+                        if (is_gare_grouped($nid)) {
+                            drupal_set_message('La richiesta '.$nid.' appartiente gi&agrave; a un raggruppamento.', 'warning');
+                            continue;
+                        }
+                        if ($gid == 0)
+                            $gid=aggregate_new($values['CND'],array($nid=>$nid)); //crea nuova gara
+                        else
+                            aggregate_node($gid,$nid); // assegna tutti alla nuova gara
+                    }
+                $redirect=$gid;
+            }
+            else // raggruppamento esisstente
+            {
+                $node=node_load($values['where']);
+                if($node->type=='gare') {
+                    foreach($refs as $nid => $set) if ($set <> 0) {
+                            if (is_gare_grouped($nid)) {
+                                drupal_set_message('La richiesta '.$nid.' appartiente gi&agrave; a un raggruppamento.', 'warning');
+                                continue;
+                            }
+                            aggregate_node($values['where'],$nid);
+                        }
+                    $redirect=$values['where'];
+                }
+            }
+            if ($redirect<>0) $form_state['redirect']='node/'.$redirect;
+
+            break;
+    }
+}
+
+//FIXME: dovrebbe andare con le funzioni di core
+function is_gare_grouped($nid) {
+    $qy = "SELECT count(a.nid2) FROM "._AGGREGATOR_TABLE." a INNER JOIN {node} n ON n.nid=a.nid  WHERE n.type='gare' AND a.nid2=%d";
+    return db_result(db_query($qy,$nid))<>0 ;
+}
