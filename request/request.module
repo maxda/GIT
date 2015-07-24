@@ -1,0 +1,796 @@
+<?php
+// $Id$
+
+include_once("request_forms.php.inc");
+include_once("request_aux_function.php.inc");
+include_once("request.php.inc");
+include_once(drupal_get_path('module','gratcore').'/gratcore.php.inc');
+
+$reqTB=_REQUESTS_TABLE;
+
+/**
+ *
+ modulo per la gestione delle richieste, la tabella aggiuntiva mantiene lo stato (aggiornato come revisione) della richiesta
+ che potr? essere aggiornato da altri moduli.
+ Lo stato determiner? le modalit? di modifica di se stesso indipendentemente dall'utente.
+ Logica guida:
+ 'stato:
+ aperta=1  richiesta inserita ma pendente  (modificabile in toto)
+ in valutazione=2, richiesta presa in considerazione da qualcuno e non modificabile totalmente (solo quantit? e qualche particolare)
+ in processo=3,        richiesta presa in carico e in corso di lavorazione non pi? modificabile (se no per cambio stato)
+ chiusa=4,        richiesta evasa e immodificabile
+ cancellata=0'    richiesta cancellata e solamente ricopiabile,
+
+ */
+
+
+function request_init(){
+    drupal_add_css(drupal_get_path('module', 'request') .'/request.css','module');
+}
+
+
+function request_help($path, $arg) {
+    $output = '';
+    switch ($path) {
+        case "admin/help#request":
+            $output = '<p>'.  t("modulo principale per la gestione delle gare") .'</p>';
+            break;
+/*     case "request/list":
+         $output = "prova";
+    break;*/
+    }
+    return $output;
+} // function request_help
+
+
+/**
+ * Valid permissions for this module
+ * @return array An array of valid permissions for the onthisdate module
+ */
+
+function request_perm() {
+    return request_permission();
+} // function request_perm()
+
+function request_access($op, $node) {
+    global $user;
+    $struct=(is_array($user->struct)?$user->struct:array($user->struct));
+    switch ($op) {
+        case 'create':
+            return (user_access(_INSERT_RCQ) || user_access(_FULL_MANGE_RCQ)) ;
+            break;
+        case 'delete':
+            return ((user_access(_MODIFY_RCQ) && $user->uid==$node->uid && $node->rcq_status<_APPROVED) || user_access(_FULL_MANGE_RCQ));
+            break;
+        case 'update':
+            return (user_access(_MODIFY_RCQ)  || user_access(_MANAGE_RCQ)  || user_access(_FULL_MANGE_RCQ)) ;
+            break;
+        case 'view'  :
+            return($user->uid==$node->uid || user_access(_MANGE_RCQ) ||
+                // se l'utente è autorizzato in visione può vedere solo le proprie strutture
+                (user_access(_VIEW_RCQ) && (in_array($node->struct,$struct) || in_array(0,$struct)))
+                    || user_access(_FULL_MANGE_RCQ))  ;
+            break;
+        default:
+            return FALSE;
+    }
+    return FALSE;
+
+}
+
+
+/*
+function request_cron() {
+    global $user;
+    $u=$user;
+    $user=user_load(array('uid'=>12));
+    $qy="SELECT DISTINCT  n.nid as nid, s.status as status, UNIX_TIMESTAMP(c.data_collaudo) as date FROM apparecchiature_per_ordine a
+        INNER JOIN principale_di_collaudo c ON c.numero_ordine=a.numero_ordine
+        INNER JOIN {node} n ON n.nid=a.nid
+        INNER JOIN "._STATUS_TABLE." s ON s.nid=n.nid
+        WHERE s.status >="._APPROVED." AND s.status<"._TESTED. " AND NOT c.data_collaudo IS NULL";
+    $qy=db_query($qy);
+    while ($res=db_fetch_object($qy)){
+        set_status($res->nid, _TESTED);
+        db_query("UPDATE "._STATUS_TABLE." SET changed=".$res->date." WHERE nid=".$res->nid);
+    }
+    $user=$u;
+}
+ *
+ */
+
+
+/*-----------------------------node part -----------------------------------------*/
+
+function request_node_name() {
+    return 'request' ;
+}
+
+
+function request_node_info() {
+    return array(
+    'request' => array(
+    'name' => t('Richieste'),
+    'module' => 'request',
+    'description' => t("Scheda di inserimento richieste"),
+    'has_title' => TRUE,
+    'title_label' => t('Richieste'),
+    'has_body' => TRUE,
+    'body_label' => t('Info gestione richieste;'),
+    )
+    );
+}
+
+
+function request_form_alter($form, $form_state, $form_id) {
+    global $user;
+    if(!isset($form['#node']) || $form['#node']->type!=='request') return;
+    $w=$form['classify']['cud']['#weight'];
+    //riposiziona i pulsanti e ne aggiunge uno
+    if (isset($form['buttons']) && isset($form['classify']) &&
+        user_access(_MANGE_RCQ) && ($user->uid == $form['uid']['#value'] ||! user_access(_FULL_MANGE_RCQ))
+    ) {
+        //sposta i campi per una gestione rapida per i gestori
+        $form['classify']['title']=$form['main']['title'];
+        $form['classify']['title']['#weight']=$w-2;
+        $form['classify']['descrizione_apparecchiatura']=$form['main']['dot3']['descrizione_apparecchiatura'];
+        $form['classify']['descrizione_apparecchiatura']['#weight']=$w-1;
+        $form['classify']['qta']=$form['main']['qta'];
+        $form['classify']['qta']['#weight']=++$w;
+        $form['classify']['type_acq']=$form['main']['type_acq'];
+        $form['classify']['type_acq']['#weight']=++$w;
+        $form['classify']['priority']=$form['main']['priority'];
+        $form['classify']['priority']['#weight']=++$w;
+        $form['classify']['value_field']=$form['main']['value_field']; 
+        $form['classify']['value_field']['#weight']=++$w;
+        $form['classify']['cost_field']['#weight']=++$w;
+        $form['classify']['note']=$form['main']['note'];
+        $form['classify']['note']['#weight']=++$w;
+        unset($form['main']['value_field']);
+        unset($form['main']['note']);
+        unset($form['main']['title']);
+        unset($form['main']['dot3']['descrizione_apparecchiatura']);
+        unset($form['main']['qta']);
+        unset($form['main']['type_acq']);
+        unset($form['main']['priority']);
+        $form['main']['#title']='Altre informazioni';
+        $form['main']['#collapsible']=TRUE;
+        $form['main']['#collapsed']=TRUE;
+        $form['classify']['buttons']=$form['buttons'];
+        $form['classify']['buttons']['#weight']=++$w;
+        unset($form['buttons']);
+    }
+
+
+}
+
+/*
+function request_next($form,&$form_state){
+// callback del pulsante aggiunto
+	$node=node_form_submit_build_node($form, $form_state);
+	node_save($node);
+	$result=db_query_range("SELECT nd.nid as nid, s.status as rcq_status FROM "._REQUESTS_TABLE." r
+	                        INNER JOIN {node} nd on r.nid=nd.nid AND r.vid=nd.vid
+                                INNER JOIN ".query_status()." s ON s.nid=nd.nid WHERE s.status="._OPEN, 1 );
+	unset($form_state['rebuild']);
+	$form_state['redirect'] = ($obj=db_fetch_object($result))?'node/'.$obj->nid.'/edit':'request/list';
+	$form_state['nid'] = $obj->nid;
+
+}
+
+*/
+function request_form(&$node) {
+    global $user;
+    $disabled=FALSE;//$node->rcq_status==_APPROVED || $node->rcq_status==_CLOSED;
+
+    $type = node_get_types('type', $node);
+    //  $form['#redirect']=request_uri();
+
+    $form[]=array(
+        '#value'=>'<h3>I campi marcati con <big><span class="form-required" title="This field is required.">*</span></big> sono obbligatori</h3>',
+        '#weight' => -3,
+    );
+    //recupero dei destinatari
+    if (!user_access(_FULL_MANGE_RCQ))
+        $struct=$user->struct;
+    else
+        $struct=NULL; //il manager pu? ridestinare le attrezzature
+
+    $form['struct'] = array(
+        '#type' => 'select',
+        '#disabled'=>$disabled,
+        '#title' => t('Struttura richiedente'),
+        '#default_value' => isset($node->struct) ? $node->struct : (is_array($user->struct)?0:$user->struct),
+        '#options' => get_structure(NULL,NULL,$struct),
+        //		'#required' => TRUE,
+        //solo il proprietario e il gestore totale possono modificare tutto
+        //		'#access' => ( $user->uid == $node->uid || user_access(_FULL_MANGE_RCQ)),
+        '#weight' => -2,
+        '#element_validate'=>array('validate_struct'),
+    );
+/*classificazione per il manager */
+    $form['classify']=array(
+        '#type'=>'fieldset',
+        '#title'=>t('Classificazione'),
+        '#collapsible'=> TRUE,
+        '#collapsed'=>FALSE,
+        '#weight' => -1,
+        '#access' => (user_access(_MANGE_RCQ)  || user_access(_FULL_MANGE_RCQ)),
+    );
+    $form['classify']['cud'] = array(
+        '#type' => 'textfield',
+        '#title' => 'CND (civab)',
+        '#description'=>t('Recupero della classificazione CND a cui appartiene l\'apparecchiatura'),
+        '#default_value' => isset($node->cud) ? $node->cud : '',
+        '#autocomplete_path' => 'cud/autocomplete',
+        '#weight'=>$w++,
+    );
+    
+    // seleziona gli stati iniziali inseribili
+    
+    if (!isset($node->rcq_status) || $node->rcq_status<_APPROVED) {
+        $status=request_status_message();
+        foreach ($status as $key => $val) if ($key >=_APPROVED) unset($status[$key]);
+        $form['classify']['rcq_status'] = array(
+            '#type' => 'select',
+            '#title' => 'Stato della richiesta',
+            '#description'=>t('Impostare lo stato iniziale della richiesta'),
+            '#default_value' => isset($node->rcq_status) ? $node->rcq_status : _OPEN,
+            '#options'=>$status,
+            '#weight'=>$w++,
+        );
+    }
+   
+ /*   $form['classify']['idARS'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Id A.R.S.',
+        '#description'=>t('Codice asseganto dall\'Agenzia Regionale della Sanit&agrave;'),
+        '#default_value' => isset($node->idARS) ? $node->idARS : NULL,
+        '#weight'=>$w++,
+    );
+  * non più usato
+  */
+    $form['classify']['idCSC'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Id C.S.C.',
+        '#description'=>t('Codice asseganto dall\'dal Centro servizi per la gara'),
+        '#default_value' => isset($node->idCSC) ? $node->idCSC : NULL,
+        '#weight'=>$w++,
+    );
+    $form['classify']['classification']=array(
+        '#type'=>'radios',
+        '#disabled'=>$disabled,
+        '#title'=>t('Classificazione acquisto'),
+        '#default_value'=> (isset($node->classification)?$node->classification:'1'),
+        '#options' => get_classification(),
+        '#weight' =>$w++,
+        '#parents'=>array('classification'),
+        '#required' => TRUE,
+    );
+    if ($node->rcq_status==_APPROVED) {
+        $form['classify']['planning']=array(
+            '#type'=>'select',
+            '#title'=>t('Pianificazione'),
+            '#default_value'=> (isset($node->planning)?$node->planning:'0'),
+            '#options' => get_planning(),
+            '#weight' =>$w++,
+            '#parents'=>array('planning'),
+            '#required' => TRUE,
+            '#access' => (user_access(_MANGE_RCQ)  || user_access(_FULL_MANGE_RCQ)),
+        );
+    }
+    $form['classify']['value_field']=array(
+        '#type'=>'fieldset',
+        '#collapsible'=> FALSE,
+        '#weight' =>$w++,
+        '#prefix' => '<div class="container-inline">',
+        '#suffix' => '</div>',
+        '#description' => t('Valore complessivo presunto di tutte le attrezzature richieste, compresi gli eventuali accessori.
+								L\'iva &egrave; definita dal relativo campo.<br>'),
+
+    );
+    $form['classify']['value_field']['value']=array(
+        '#type'=>'textfield',
+        '#title'=>t('Costo presunto'),
+        //'#description' => t('Costo complessivo delle attrezzature richieste, compresi gli eventuali accessori.'),
+        '#default_value'=> (isset($node->value)?$node->value:''),
+        '#parents' => array('value'), // coincide con $node->value
+        '#weight' =>1,
+        '#required' => TRUE,
+        '#field_prefix'=>'&euro;',
+        '#element_validate'=>array('validate_integer'),
+        '#attributes'=>array('class'=>'integer'),
+        '#size'=>10,
+    );
+    $form['classify']['value_field']['value_vat'] = array(
+        '#type' => 'select',
+        '#title' => t(''),
+        '#default_value'=> (isset($node->value_vat)?$node->value_vat:0), // default 'con sistema informativo aziendale'
+        '#options' => get_iva(),
+        '#parents' => array('value_vat'),
+        '#weight' => 2,
+    );
+/*    $form['classify']['value_field']['money'] = array(
+        '#type' => 'radios',
+        '#title' => t('Finanziamento'),
+        '#default_value'=> (isset($node->money)?$node->money:1), // default 'con sistema informativo aziendale'
+        '#options' => get_money(),
+        '#parents' => array('money'),
+        '#weight' => 3,
+    );
+*/
+    $form['classify']['cost_field']=array(
+        '#type'=>'fieldset',
+        '#collapsible'=> FALSE,
+        '#weight' =>$w++,
+        '#access' => ((user_access(_MANGE_RCQ) && $node->rcq_status==_APPROVED)  || user_access(_FULL_MANGE_RCQ)),
+        '#prefix' => '<div class="container-inline">',
+        '#suffix' => '</div>',
+        '#description' => t('Costo reale sostenuto per l\'acquisto  delle attrezzature richieste, compresi gli eventuali accessori.
+								L\'iva va definita nel relativo campo.<br>'),
+
+    );
+    $form['classify']['cost_field']['cost']=array(
+        '#type'=>'textfield',
+        '#title'=>t("Valore di acquisto &euro;"),
+        '#default_value'=> (isset($node->cost)?$node->cost:'0'),
+        '#parents' => array('cost'), // coincide con $node->value
+        '#weight' => 1,
+        '#required' => FALSE,
+        '#element_validate'=>array('validate_integer'),
+        '#attributes'=>array('class'=>'integer'),
+        '#size'=>10,
+        '#prefix' => '<div class="container-inline">',
+        '#suffix' => '</div>',
+    );
+    $form['classify']['cost_field']['cost_vat'] = array(
+        '#type' => 'select',
+        '#title' => t(''),
+        '#default_value'=> (isset($node->cost_vat)?$node->cost_vat:_IVA_21), // default 'con sistema informativo aziendale'
+        '#options' => get_iva(),
+        '#parents' => array('cost_vat'),
+        '#weight' => 2,
+    );
+
+            $form['main']=array(
+                '#type'=>'fieldset',
+                '#title'=>t(''),
+                '#collapsible'=> FALSE,
+        '#tree' => TRUE,
+        //solo il proprietario e il gestore totale possono modificare tutto
+        '#access' => ( $user->uid == $node->uid || user_access(_FULL_MANGE_RCQ)),
+        '#weight' => 0,
+            );
+    if (user_access(_MANGE_RCQ) && !($user->uid == $node->uid || user_access(_FULL_MANGE_RCQ)))
+        $form['info'] = array('#type'=>'fieldset','#value' => request_main_view($node, FALSE));
+            request_main_form($node,$form);
+        $form['main']['note'] = array(
+            '#type' => 'textarea',
+            '#disabled'=>  ($node->rcq_status>=_APPROVED), //le note di compilazioni sono disabilitate dopo l'approvazione
+            '#title' => t('Note di compilazione'),
+            '#description'=>t('Note e/o considerazioni di compilazione che non potevano essere inserite nella scheda.'),
+            '#default_value' => isset($node->note) ? $node->note : '',
+            '#parents'=>array('note'),
+            '#rows' => 3,
+        '#access' => ( $user->uid == $node->uid || user_access(_FULL_MANGE_RCQ)), //solo il proprietario e il gestore totale possono modificare tutto
+            '#weight' => 10000
+        );
+    //fill body for db
+    $form['body']=array(
+        '#type'=>'hidden',
+        '#default_value'=>'empty body'
+
+    );
+    return $form;
+}
+
+function validate_struct (&$element,$form_state) {
+    global $user;
+    // check if the element is a number
+    if ($element['#value']==0)form_error($element,'Va selezionata una struttura richiedente!');
+}
+
+
+function request_insert($node) {
+    global $user;
+    $reqTB=_REQUESTS_TABLE;
+    // rebuilt data array in body
+    $node->infos= serialize_data($node);
+ /*TODO: fill techinfo data */
+    $techInfo=NULL;
+    
+// assegna comunque la struttura di appartenenza del richiedente nel caso non sia assegnata
+    if (!isset($node->struct) || $node->struct==0) {
+        if (is_array($user->struct))
+             $node->struct=$user->struct[0];
+        else $node->struct=$user->struct;
+    }
+    //inizializza sempre il costo a zero
+    if (!isset($node->cost))$node->cost=0;
+    /* chide la richiesta se ? stato inserito il costo!!*/
+    if ($node->cost>0)$node->rcq_status=_CLOSED;
+    
+    drupal_write_record($reqTB,$node);
+  /*  db_query("INSERT INTO ".$reqTB." (nid,vid,qta,
+                                        priority,cud,value,value_vat,
+                                        cost,cost_vat,struct,note,
+                                        type_acq, classification,planning,
+                                        idARS,idCSC,rcq_status,infos,techInfo)
+                                        VALUES (%d, %d, %d,
+                                        %d,'%s',%d,%d,
+                                        %d,%d, %d,'%s',
+                                        %d, %d,%d,
+                                        '%s','%s',%d,'%s','%s')",
+
+        $node->nid, $node->vid, $node->qta,
+        $node->priority,$node->cud,$node->value,$node->value_vat,
+        $node->cost, $node->cost_vat,$node->struct,$node->note,
+        $node->type_acq, $node->classification,$node->planning,
+        $node->idARS, $node->idCSC, $node->rcq_status, $node->infos,$techInfo); */
+   /* if ($node->cud<>'' || $node->value<>0 )  $status=_EVALUTATE; else */
+
+ 
+
+}
+
+function request_update($node) {
+    global $user;
+    if($node->rcq_status ==_CLOSED) return; //cannot modify already closed request
+    if (!isset($node->cost))$node->cost=0;
+
+        $node->infos= serialize_data($node); //compress info data
+ /*TODO: fill tech info data */
+        $techInfo=NULL;
+
+        if ($node->revision) request_insert($node);
+
+        else {
+            if ($node->cost>0)$node->rcq_status=_CLOSE;
+                drupal_write_record(_REQUESTS_TABLE, $node,array('nid','vid'));
+        }
+}
+
+function request_load($node) {
+    $additions = db_fetch_object(
+        db_query("SELECT qta, priority, cud,
+                        value, value_vat, cost, cost_vat,
+                        struct, note, type_acq, classification,
+                        planning, idARS, idCSC, rcq_status, infos, techInfo
+                FROM "._REQUESTS_TABLE." r
+                WHERE r.vid=%d AND r.nid=%d " , $node->vid,$node->nid));
+ //   $additions->rcq_status=get_status($node->nid);
+    unserialize_data($additions,$additions->infos);//expand custom info data
+    //       print_r($additions);
+ /*TODO: unserialize techInfo*/
+    return $additions;
+}
+
+function request_delete($node) {
+// delete all custom nodes  setting status.
+    db_query("DELETE FROM "._REQUESTS_TABLE." WHERE nid=%d AND vid=%d ", $node->nid, $node->vid);
+    delete_status($node->nid);
+}
+
+function control_button(&$form_state,$node,$teaser){
+    $form['nid']=array('#type'=>'hidden','#value'=>$node->nid);
+    insert_status_buttons($form, 1,  $node->rcq_status);
+    if ($teaser)
+        $form['#redirect'][]='request/list';
+    else
+        $form['#redirect'][]='node/'.$node->nid;
+    return $form;
+}
+function request_view($node, $teaser = FALSE, $page = FALSE) {
+    global $user;
+    $node = node_prepare($node, $teaser);
+    unserialize_data($node,$node->infos);
+    $node->content['status_button'] =array(
+        '#type'=>'fieldset',
+        '#title'=>'Avanzamenti',
+        '#description'=>'I pulsanti consentono di impostare un nuovo stato di avanzamento per la richiesta',
+        '#value'=>drupal_get_form('control_button',$node,$teaser),
+        '#weight'=>-1);
+    $node->content['body'] = array(
+        '#value' =>
+        '<span class="description idGIT">ID:</span><span class="nid idGIT">'.$node->nid.'</span> |
+		<span class="description idREF">Id A.R.S.:</span><span class="idREF">'.$node->idARS.'</span> |
+		<span class="description idREF">Id D.S.C.:</span><span class="idREF">'.$node->idCSC.'</span> <br>
+		<span class="description">Struttura richiedente:</span><b>'.implode(' ',get_structure($node->struct)).'</b> |
+		<span class="description">Pianificazione:</span><b>'.get_planning($node->planning).'</b><br>
+		<span class="description">Stato:</span><b>'.l(request_status_message($node->rcq_status),'node/'.$node->nid.'/revisions').'</b> |
+		<span class="description">Priorit&agrave; della richiesta:</span><b>'.get_priority($node->priority).'</b> |
+		<span class="description">Classificazione:</span>'.get_classification($node->classification).'<br>
+		<span class="description">Quantit&agrave;:</span><b>'.$node->qta.'</b> |
+		<span class="description">Classificazione CND:</span><b>'.get_cud_description($node->cud).'</b><br>
+		<span class="description">Valore presunto:</span><b>'.currencyFormat($node->value,$node->value_vat).'</b>'.
+  //              <span class="description"> Finanziamento:</span><b>'.get_money($node->money).'</b><br>
+		'<span class="description">Valore di acquisto:</span><b>'.currencyFormat($node->cost,$node->cost_vat).'<br>',
+        '#weight' => 2,
+    );
+    if($teaser) return $node;
+        $node->content['request']=array(
+            '#value'=> request_main_view($node, $teaser ),
+            '#weight' => 4,
+        );
+    $node->content['note']=array(
+        '#type'=>'item',
+        '#title'=>'Note',
+        '#value'=>$node->note,
+        '#weight' => 3,
+    );
+
+    //	if(!$teaser)   $node->content['body']['#value'] .= '<div class="description">Note di compilazione:</div><bold>'.check_plain($node->note).'</bold>';
+
+    return $node;
+}
+
+function request_update_index() {
+    $last = variable_get('node_cron_last', 0);
+    $limit = (int)variable_get('search_cron_limit', 100);
+
+    $result = db_query_range('SELECT n.nid, c.last_comment_timestamp FROM {node} n LEFT JOIN {node_comment_statistics} c ON n.nid = c.nid
+  			    WHERE n.status = 1 AND n.moderate = 0 AND (n.created > %d OR n.changed > %d OR c.last_comment_timestamp > %d)
+  			    ORDER BY GREATEST(n.created, n.changed, c.last_comment_timestamp) ASC', $last, $last, $last, 0, $limit);
+
+    while ($node = db_fetch_object($result)) {
+        $last_comment = $node->last_comment_timestamp;
+        $node = node_load(array('nid' => $node->nid));
+
+        // We update this variable per node in case cron times out, or if the node
+        // cannot be indexed (PHP nodes which call drupal_goto, for example).
+        // In rare cases this can mean a node is only partially indexed, but the
+        // chances of this happening are very small.
+        variable_set('node_cron_last', max($last_comment, $node->changed, $node->created));
+
+        // Get node output (filtered and with module-specific fields).
+        if (node_hook($node, 'view')) {
+            node_invoke($node, 'view', false, false);
+        }
+        else {
+            $node = node_prepare($node, false);
+        }
+        // Allow modules to change $node->body before viewing.
+        node_invoke_nodeapi($node, 'view', false, false);
+
+        $text = '<h1>'. $node->title .'</h1><h1>'. $node->body.'</h1>';
+
+        // Fetch extra data normally not visible
+        $extra = node_invoke_nodeapi($node, 'update index');
+        foreach ($extra as $t) {
+            $text .= $t;
+        }
+
+        // Update index
+        search_index($node->nid, 'node', $text);
+    }
+}
+
+/********************************************************************************************************
+			SETTAGGIO AZIONI (TRIGGER)
+*******************************************************************************************************/
+//TODO: implementare le azioni
+function request_action_info() {
+     
+    /*foreach(request_status_message() as $id => $description){
+        $action['description']= 'Imposta lo stato '.check_plain($description).'.';
+        $action['type']='node';
+        $action['configurable']=TRUE;
+        $action['hooks']['nodeapi'][]='insert';
+        $action['hooks']['nodeapi'][]='update';
+        $actions['request_'.$id.'_action']=$action;
+    }
+     * 
+     */
+    $action['description']= 'Imposta un nuovo stato.';
+    $action['type']='node';
+    $action['configurable']=TRUE;
+    $action['hooks']['nodeapi'][]='insert';
+    $action['hooks']['nodeapi'][]='update';
+    $actions['request_set_new_state_action']=$action;
+    return $actions;
+/*    
+    return array(
+    'request_set_published_action' => array(
+    'description' => t('Challenge published'),
+    'type' => 'node',
+    'configurable' => TRUE,
+    'hooks' => array(
+    'nodeapi' => array('insert', 'update'),
+    )
+    )
+    );
+ * 
+ */
+}
+
+function request_set_new_state_action(&$node,$context){
+    return;
+
+}
+
+/********************************************************************************************************/
+
+/* modyfy normal node fields to hide unused ones
+function request_form_aler(&$form, $form_state, $form_id){
+
+}*/
+/*-----------------------------BLOCK PART-----------------------------------------*/
+
+function request_block($op='list', $delta=0, $edit=array() ) {
+
+} //function request_block()
+
+
+
+/*------------------------------------menu hook-----------------------------------
+ **/
+function request_menu() {
+
+    $items=array();
+
+
+
+    $items['request/list'] = array(
+        'title' => 'Tutte le richieste',
+        //'page callback' => 'drupal_get_form',
+        'page callback' => 'filtered_list',
+        //'page arguments' => array(2),
+        'access arguments' => array( _VIEW_RCQ ),
+
+    );
+    $items['request/prn'] = array(
+        'title' => 'stampa',
+        //'page callback' => 'drupal_get_form',
+        'page callback' => 'retreive_all',
+        //'page arguments' => array(2),
+        'file'=>'short_list.php.inc',
+        'type' => MENU_NORMAL_ITEM,
+        'access arguments' => array( _FULL_MANGE_RCQ ),
+
+    );
+    $items['request/statistic'] = array(
+        'title' => 'statistiche',
+        //'page callback' => 'drupal_get_form',
+        'page callback' => 'statisticsCND',
+        //'page arguments' => array(2),
+        'file'=>'statistics.php.inc',
+        'type' => MENU_NORMAL_ITEM,
+        'access arguments' => array( _MANGE_RCQ ),
+
+    );
+/*
+      $w=0;
+     $items["request/list/all"] = array(
+	 			'title' => "Tutte",
+	 			'page arguments' => array(2),
+	 			'weight' => $w++,
+	 		  	'type' => MENU_LOCAL_TASK,
+	 		  	'access arguments' => array( _VIEW_RCQ ),
+
+	);
+     foreach (request_status_message() as $key => $value){
+     	$items['request/list/'.$key] = array(
+			'title' => "$value",
+			'page arguments' => array(2),
+			'weight' => $w++,
+		  	'type' => MENU_LOCAL_TASK,
+		  	'access arguments' => array( _VIEW_RCQ ),
+	);
+     }
+*/
+    return $items;
+}
+
+/**
+ *  compone la form elenco delle richieste
+ * @param <type> $v
+ * @return <type>
+ */
+function filtered_list($v='all') {
+    $output=drupal_get_form('requests_filter');
+    $output.=drupal_get_form('request_listcheck',$v);
+    return $output;
+}
+
+function request_theme() {
+    $theme['request_listcheck']['arguments']['form']=NULL;
+    
+    return $theme;
+}
+/*  ---------------------- other functions ----------------------------------------- */
+/* summary hook called by core hook_summary
+	return block with title description and content*/
+function request_summary() {
+    global $user;
+    $structure ='';
+
+    $block['title']='Richieste ';
+    $block['description']='Sommario delle richieste ';
+    $block['content']='<table><tr><td>';
+    if (!(user_access(_MANGE_RCQ) || user_access(_FULL_MANGE_RCQ) || $user->uid==0)) {
+        if (isset($user->struct)&&($struct=queryStruct($user->struct)<> FALSE)) $structure.=' AND R.struct IN ('.$struct.')';
+        $block['title'].= 'di: <ul><li>';
+        $c=$user->struct;
+        if (!is_array($c)) $c[]=$c;
+        $b=get_structure($c);
+        $block['title'].= implode('</li><li>',$b).'</li></ul>';
+    }
+
+    $where="WHERE N.type='request' AND Year(from_UNIXTIME(N.created))=".date("Y")." ".$structure;
+    // sintesi per stato
+    $block['content'].=summary_block('Stato richieste correnti (anno '.date("Y").')','s.status ',request_status_message(),$where);
+
+    //stampa del totale
+    $qy=db_query("SELECT count(N.nid) as count, sum(R.value) as value
+		FROM {node} N INNER JOIN "._REQUESTS_TABLE." R ON N.nid=R.nid AND N.vid=R.vid
+		INNER JOIN ".query_status()." S ON N.nid=S.nid WHERE N.type='request' AND
+			Year(from_UNIXTIME(N.created))=".date("Y")." AND "._PENDING_REQUESTS.$structure);
+    $block['content'].='<br><div class="body">
+			   	<p>'.
+        t('Totale richieste attive correnti (anno '.date("Y").')').'&nbsp;'.
+        l(($res=db_fetch_object($qy))?$res->count:0,'request/list').' (valore '.currencyFormat($res?$res->value:0).')
+			   	</p>';
+    $block['content'].='</div>';
+
+
+    $where="WHERE N.type='request' AND Year(from_UNIXTIME(N.created))<".date("Y")." AND s.status="._APPROVED.$structure;
+
+
+    // sintesi per priorit?
+    $block['content'].=summary_block('Richieste approvate anni precedenti','Year(from_UNIXTIME(N.created))',NULL,$where);
+
+
+    $block['content'].='</td><td>';
+
+    $where="WHERE N.type='request' AND "._PENDING_REQUESTS.$structure;
+
+    // sintesi per priorit?
+    $block['content'].=summary_block('Priorit&agrave;','R.priority',get_priority(),$where);
+    // sintesi per tipologia
+    $block['content'].=summary_block('Tipo di acquisto','R.type_acq',get_type_acq(),$where);
+    // sintesi per classificazione
+    $block['content'].=summary_block('Classificazione','R.classification',get_classification(),$where);
+
+    $block['content'].='</td></tr></table>';
+    return $block;
+}
+
+function summary_block($title,$field,$labels,$where) {
+    $qy=db_query("SELECT count(N.nid) as count, sum(R.value) as value, $field as reference
+				FROM {node} N INNER JOIN "._REQUESTS_TABLE." R ON N.nid=R.nid AND N.vid=R.vid
+				INNER JOIN ".query_status()." s ON N.nid=s.nid ".$where.
+        " GROUP BY $field ORDER BY $field DESC");
+    $sum=0;
+    $ss='';
+    while ($res=db_fetch_object($qy)) {
+        $ss.='<li><div class="body"><p class="description">'.
+            ((isset($labels))?$labels[$res->reference]:$res->reference).'&nbsp;<strong>'.
+            $res->count.'</strong>&nbsp;(valore <strong>'.currencyFormat($res->value).'</strong>)
+			    </p></div></li>';
+        $sum+=$res->value;
+    }
+    $block.='<br><em>'.$title.'</em><ul>'.$ss.'</ul>';
+    return $block;
+}
+
+
+/* hook di update della struttura*
+ *
+ */
+
+function request_structure_move($id_source,$id_destination){
+   $qy='SELECT DISTINCT nid FROM '._REQUESTS_TABLE.' WHERE struct=%d';
+   $res=db_query($qy,$id_source);
+   while($rs=db_fetch_object($res)){
+        $node=node_load($rs->nid);
+        $node->struct=$id_destination;
+        $src=get_structure($id_source);
+        $dst=get_structure($id_destination);
+        $node->log='Aggiornamento struttura da '.$src[0].' a '.$dst[0];
+        node_save($node);
+   }
+
+//    db_query(
+//       'UPDATE '._REQUESTS_TABLE.' SET struct=%d WHERE struct=%d',$id_destination,$id_source
+//    );
+}

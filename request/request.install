@@ -1,0 +1,228 @@
+<?php
+/* install or UPDATE functions for request modules
+*/
+
+include_once('request_aux_function.php.inc');
+function request_uninstall() {
+	drupal_uninstall_schema('request');
+}
+
+
+function request_schema(){
+	$schema[_REQUESTS_TABLE] = array(
+	'fields' => array(
+		 'nid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'disp-width' => '10'),
+		 'vid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'disp-width' => '10'),
+		 'qta' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 1, 'disp-width' => '10'),
+		 'value' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'),
+		 'value_vat' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '3'),
+                 //'money'=> array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 1, 'disp-width' => '3'),
+		 'cud' => array('type' => 'varchar', 'length' => '50', 'not null' => FALSE, 'default' => ''),
+		 'struct' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'),
+                 'rcq_status'=>array('type'=>'int', 'not null'=>TRUE, 'default'=>'0', 'initial'=>1),
+		 'note' => array('type' => 'text', 'size' => 'big', 'not null' => FALSE),
+		 'infos' => array('type' => 'text', 'size' => 'big', 'not null' => TRUE),
+                 'techInfo' => array('type' => 'text', 'size' => 'big', 'not null' => FALSE),
+		 'priority' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'),
+		 'type_acq' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'),
+		 'classification' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'),
+		 'planning' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'),
+		 'cost'=> array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'),
+		 'cost_vat'=> array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '3'),
+		 'idARS' => array('type' => 'varchar', 'length' => '45', 'not null' => FALSE),
+		 'idCSC' => array('type' => 'varchar', 'length' => '45', 'not null' => FALSE)),
+
+	'primary key' => array('nid', 'vid'),
+	);
+	return $schema;
+}
+
+function request_install() {
+	drupal_install_schema('request');
+}
+
+
+
+function request_update_6002() {
+	$table_name=_REQUESTS_TABLE;
+	$res[]=update_sql("ALTER TABLE ".$table_name." CHANGE COLUMN `urgency` `priority` INTEGER UNSIGNED NOT NULL DEFAULT 0,
+                           ADD COLUMN `classification` INTEGER UNSIGNED NOT NULL DEFAULT 0 AFTER `type_acq`;");
+
+	$res[]=update_sql('UPDATE '.$table_name.' SET classification = 1');
+
+	include_once('request_aux_function.php.inc');
+
+	$qy_obj=db_query('SELECT * FROM '.$table_name.' WHERE type_acq=0');
+	while ($revision=db_fetch_object($qy_obj)){
+		unserialize_data($infos,$revision->infos);
+		if (isset($infos->main['type_acq'])) {
+			$type_acq=$infos->main['type_acq'];
+			unset($infos->main['type_acq']);
+			$revision->infos=serialize_data($infos);
+			$sql="UPDATE ".$table_name." SET type_acq=%d  , infos='%s'
+				  WHERE nid=%d AND vid=%d";
+			$res1=db_query($sql,$type_acq,$revision->infos,$revision->nid,$revision->vid);
+			$res[]=array('success'=> $res1!==FALSE , 'query'=>'Updated node '.$revision->nid);
+		}
+	}
+	return $res;
+
+}
+
+define(__MAXX,200);
+function request_update_6003(&$sandbox) {
+        set_time_limit(1000);// allunga il tempo di vita della funzione fino a 100 secondi visto che è molto lenta.
+	//multipass settings
+        $ret=array();
+        if (!isset($sandbox['max'])){
+            $sandbox['max']=  db_result(db_query('SELECT COUNT(DISTINCT nid) FROM {node} WHERE type=\'request\''));
+            db_add_field($ret, _REQUESTS_TABLE, 'techInfo',array('type'=>'text', 'size'=>'big', 'not null'=>FALSE));// inserisce campo scheda tecnica
+            db_add_field($ret, _REQUESTS_TABLE, 'rcq_status',array('type'=>'int', 'not null'=>TRUE, 'default'=>'0', 'initial'=>1));
+            $sandbox['count']=0;
+        }
+// carico tutti i riferimenti ai nodi         
+        $qy='SELECT nid,vid,created, changed FROM {node} WHERE type=\'request\' ORDER BY nid DESC';
+        $qy=  db_query_range($qy,$sandbox['count'],__MAXX);
+        if (db_error()!=0) watchdog ('request', 'DB error:'.mysql_error(db_error()).' ('.db_error ().')');
+        
+        
+        while ($node=db_fetch_array($qy)) {
+            $nodes[]=$node;
+        }
+//processo nodo per nodo         
+        while ($node=  array_pop($nodes)){
+            $ret[]=_set_last_status0003($node['nid']);// sposta  l'ultimo stato valido nel log
+            $q='SELECT vid,timestamp FROM {node_revisions} where nid='.$node['nid'].' ORDER BY timestamp DESC';
+            $q=  db_query($q);
+            if (db_error()!=0) watchdog ('request', 'DB error:'.mysql_error(db_error()).' ('.db_error ().')',WATCHDOG_ERROR);
+            $revisions=array();
+//carica tutte le revisioni
+            while($revision=  db_fetch_array($q)){
+                $revisions[]=$revision;
+            }
+//data creazione nodo e successivamente delle revisioni            
+            $node_begin_time=$node['created'] - 3;// margine di sicurezza perprendere le revisioni e gli stati
+            $last_status=0;
+            $last_revision=0;
+// processo tutti i cambi di stato fra una revisione e l'altra             
+            while ($revision=  array_pop($revisions)){
+                $q='SELECT uid, status, changed FROM '._STATUS_TABLE_LOG.' 
+                     WHERE nid=%d AND changed > %d AND changed <= %d
+                     ORDER BY changed ASC';
+                $q=db_query($q,$node['nid'],$node_begin_time,$revision['timestamp']);
+                if (db_error()!=0) watchdog ('request', 'DB error:'.mysql_error(db_error()).' ('.db_error ().')',WATCHDOG_ERROR);
+                $revision_updated=FALSE;         
+                // inserisco tutti gli stati fra un revisione e l'altra 
+                while($r=  db_fetch_object($q)){  
+                    if (db_error()!=0) watchdog ('request', 'DB error:'.mysql_error(db_error()).' ('.db_error ().')',WATCHDOG_ERROR);
+                    //se le date coincidono si cambia solo la revisione
+                    if ($revision['timestamp']==$r->changed){
+                        $ret[]=_update_revision0003($node['nid'], $revision['vid'],$r->status);
+                        $revision_updated=TRUE;
+                    }
+                    else {
+                        //tutti i successivi cambi di stato creano una revisione 
+                        $ret[]=  _create_revision0003($node['nid'], $r->status, $r->uid, $r->changed, $revision['vid']);                    
+                    }
+                    $last_status=$r->status;
+                    db_query('DELETE FROM '._STATUS_TABLE_LOG.' WHERE nid=%d AND changed=%d',$node['nid'],$r->changed);
+                }
+                // aggiorna la revisione se non è stato fatto prima 
+                if (!$revision_updated){
+                    $ret[]=_update_revision0003($node['nid'], $revision['vid'],$last_status!=0?$last_status:_OPEN);
+                }
+                //registra la data della revisione processata, per l'intervallo successivo                
+                $node_begin_time=$revision['timestamp'];
+                $last_revision=$revision['vid'];
+            }
+            // processo tutti gli stati dopo l'ultima revisione 
+            $q='SELECT uid, status, changed FROM '._STATUS_TABLE_LOG.' 
+                    WHERE nid=%d AND changed > %d
+                    ORDER BY changed ASC';
+            $q=db_query($q,$node['nid'],$node_begin_time);
+            if (db_error()!=0) watchdog ('request', 'DB error:'.mysql_error(db_error()).' ('.db_error ().')',WATCHDOG_ERROR);
+            
+            //$first=TRUE;
+            while($final_status=  db_fetch_object($q)){
+                if (db_error()!=0) watchdog ('request', 'DB error:'.mysql_error(db_error()).' ('.db_error ().')',WATCHDOG_ERROR);
+                //tutti i successivi cambi di stato creano una nuova revisione corrente 
+                $ret[]=_create_revision0003($node['nid'], $final_status->status, $final_status->uid, $final_status->changed,$last_revision);
+                db_query('DELETE FROM '._STATUS_TABLE_LOG.' WHERE nid=%d AND changed=%d',$node['nid'],$r->changed);
+            }             
+            
+            
+            db_query('DELETE FROM '._STATUS_TABLE_LOG.' WHERE nid=%d',$node['nid']);//pulizia generale
+            $sandbox['count']++; //aggiornamento contatore
+        } 
+        // imposta lo stato corrente al nodo
+        //_set_last_status0003($node['nid']);// sposta  l'ultimo stato valido nel log
+        $pp=$sandbox['count'] / $sandbox['max'];
+        $ret['#finished']=$pp;
+	return $ret;
+}
+
+/**
+ *  crea copie della revisione con lo stato, la data e l'utente corretti 
+ */
+function _create_revision0003($nid,$status,$uid,$node_begin_timestamp, $revision=FALSE){
+    $res=TRUE;
+    $log_msg='Aggiornato stato avanzamaneto a "'.request_status_message($status).'('.$status.')';
+    
+    if($revision===FALSE){
+        // carica l'ultimo nodo
+        $node_rev=  node_load($nid);
+        
+    }
+    else {
+        $node_rev=  node_load($nid,$revision);
+    }
+    $node_rev->log=$log_msg;
+    $node_rev->changed=$node_begin_timestamp;;
+    $node_rev->timestamp=$node_begin_timestamp;
+    $node_rev->uid=$uid;
+    $node_rev->rcq_status=$status;
+    
+  
+    $res=$res && drupal_write_record('node_revisions',$node_rev);
+    $res=$res && drupal_write_record(_REQUESTS_TABLE,$node_rev);
+    // aggiorna il riferimetno all'ultimo nodo inserito
+    $last_revision=  db_fetch_object(db_query("SELECT vid, timestamp FROM {node_revisions} WHERE nid=%d ORDER BY timestamp DESC, vid DESC",$node_rev->nid)); 
+    if ($last_revision) $res=$res && db_query("UPDATE {node} SET vid=%d, changed=%d WHERE nid=%d",$last_revision->vid,$last_revision->timestamp,$node_rev->nid);
+     
+    return array('success'=> $res!==FALSE , 'query'=>'added revision to node '.$node_rev->nid);
+}
+/*
+ * aggiorna lo stato della revisione 
+ */
+function _update_revision0003($nid,$revision,$status){
+    $log_msg=db_result(db_query("SELECT log FROM {node_revisions} WHERE nid=%d AND vid=%d",$nid,$revision));
+    $log_msg.=($log_msg!=''?'; ':'').'Aggiornato stato avanzamaneto a "'.request_status_message($status).'('.$status.')';
+    $res=db_query('UPDATE '._REQUESTS_TABLE.' SET rcq_status=%d WHERE nid=%d AND vid=%d',$status,$nid,$revision);
+    $res = $res && db_query('UPDATE {node_revisions} SET log=\'%s\' WHERE nid=%d AND vid=%d',
+            $log_msg,$nid,$revision);
+    return array('success'=> $res!==FALSE , 'query'=>'Updated node '.$nid);
+}
+
+/* 
+ * registra lo stato corrente nel lo degli stati e elimina lo stato corrente dalla tabella stato
+ */
+function _set_last_status0003($nid) {
+    $ok=TRUE;
+    $status=db_fetch_object(db_query("SELECT * FROM "._STATUS_TABLE." WHERE nid=%d ",$nid));
+    if ($status) {
+        $res = db_fetch_object(db_query("SELECT * FROM "._STATUS_TABLE_LOG." WHERE nid=%d AND changed=%d ORDER BY changed DESC ",$nid, $status->changed));
+        if ($res){
+           $ok=$ok && db_query("UPDATE "._STATUS_TABLE_LOG." SET uid=%d,  status=%d WHERE nid=%d AND changed=%d",
+                    $status->uid,$status->status,$nid, $status->changed);
+            $ok=$ok && db_query("DELETE FROM "._STATUS_TABLE." WHERE nid=%d",$nid);
+        }
+        else {
+            $ok=$ok && db_query("INSERT INTO "._STATUS_TABLE_LOG." (nid, uid,  status, changed)
+               SELECT nid, uid,  status, changed FROM "._STATUS_TABLE." WHERE nid=".$nid);
+            $ok=$ok && db_query("DELETE FROM "._STATUS_TABLE." WHERE nid=%d",$nid);
+        }
+    }
+    else $ok=FALSE;
+    return array('success'=> $ok!==FALSE , 'query'=>'Updated node '.$nid);
+}
+

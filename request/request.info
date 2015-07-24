@@ -1,0 +1,9 @@
+; $Id$
+name = request
+description = Modulo per la grestione delle richieste; Tecniche Biomedicali. 
+core = 6.x
+dependencies[] = gratcore
+;dependencies[] = Upload
+package =  GRAT
+version = 6.x-0.3
+

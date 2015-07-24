@@ -1,0 +1,69 @@
+/* 
+    Document   : request
+    Created on : 29-feb-2012, 14.33.43
+    Author     : dantoni.massimo
+    Description:
+        Purpose of the stylesheet follows.
+*/
+
+/* 
+define ("_DELETED",1); 	   // richiesta cancellata dalle liste
+define ("_REFUSED",2);
+define ("_TEST",80);
+define ("_OPEN",100);          // aperta e pendente
+define ("_EVALUTATE",200);     // in fase di valutazione (bloccata la modifica)
+define ("_RIVALUTATE",201);    // in fase di rivalutazione (bloccata la modifica)
+
+
+define ("_APPROVED",300);	   // in lista per l'acquisto
+define ("_TEC_DOC",301);	   //  documentazione tecnica per acq
+define ("_PUBLISHED",350);         //  pubblicazione
+define ("_MOVED",400);             // importo ridestinato
+define ("_CLOSED",1000);	   // evasa, acquisto avvenuto
+define ("_TESTED",2000);
+*/
+
+tr.status_1 td, tr.status_1 a {
+   text-decoration: line-through;
+   color:  #999999;
+   background: #eeeeee;
+}
+
+tr.status_2 td {
+   text-decoration: line-through;
+}
+
+tr.status_80 td{
+  /*  background: #ffffcc ;*/
+    border-bottom:  thin #ffffcc solid
+}
+tr.status_100{
+    
+}     
+tr.status_200{
+    
+}     
+tr.status_201{
+    
+}     
+/*tr.status_300 td {
+    border-bottom:  thin #b30000 solid
+} */  
+tr.status_300  td{
+    border-bottom:    thin #b30000 solid
+} 
+tr.status_301 td{
+    border-bottom:  thin #e0d600  solid
+}     
+tr.status_350 td{
+    border-bottom:  thin #05bf00 solid
+}     
+tr.status_400 td{
+     text-decoration: line-through;
+}     
+tr.status_1000 td{
+    border-bottom:  thin #0004b3 solid
+}     
+tr.status_2000 td{
+    border-bottom:  thin #000000 solid
+}
