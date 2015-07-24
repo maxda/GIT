@@ -1,0 +1,436 @@
+/* 
+    Document   : tested
+    Created on : 30-nov-2012, 0.32.19
+    Author     : massimo
+    Description:
+        stile per la form di collaudo
+*/
+
+table.tested div.form-item{
+    margin: 0;
+}
+
+
+#tested-items table{ 
+
+}
+
+#tested-items th{ 
+    /*   -webkit-transform: rotate(-90deg); 
+       -moz-transform: rotate(-90deg);
+       filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=3);
+    */    
+}
+
+
+
+#tested-items tr { 
+    padding: 0;
+    margin: 0; 
+    border:none;
+}
+
+#tested-items .error {
+    border: 1px solid #C52020;
+}
+
+#tested-items tr.odd { 
+
+}
+
+#tested-items tr.even { 
+
+}
+/*-----------------------------------------*/
+
+html.js .intervento_associato fieldset{
+    border-color: transparent;
+}
+html.js .intervento_associato fieldset.collapsible.collapsed{
+   /* height: 0.5em; */
+    margin-bottom: 0.3em;
+    padding: 0; 
+}
+html.js .intervento_associato fieldset.collapsible{
+    margin: 1px;
+    padding: 0;
+}
+.intervento_associato{
+    padding:0 0;
+}
+.intervento_associato fieldset{
+    background: none;
+    border-color: grey;
+}
+
+.intervento_associato tr.even, 
+.intervento_associato tr.odd{
+    background: none;
+}
+.intervento_associato td{
+    border-color: black;
+    border-style: solid;
+    border-width: 1px;
+    margin: 0 0 0 0;
+}
+.intervento_associato th{
+    background-color: lightgrey;
+    border-color: black;
+    border-style: solid;
+    border-width: 1px;
+    margin: 0 0 0 0;
+
+}
+.intervento_associato td th{
+    background-color: lightgreen;
+}
+.intervento_associato td td{
+    background-color: #e2fee2;
+}
+.intervento_associato td td th{
+    background-color: lightskyblue;
+}
+.intervento_associato td td td{
+    background-color: lightcyan;
+}
+
+
+#tested-items td, 
+#tested-items th { 
+    padding: 0;
+    margin: 0;
+    border: 1px solid black;
+    border-collapse: collapse;
+
+}
+#tested-items th {
+    padding-right: 2px;
+}
+
+#tested-items td input[type~="text"] { 
+    padding:1px;
+    margin: 0;
+    background: none;
+    outline:none;
+    border:none;
+
+}
+#tested-items td input[type~="text"]:hover { 
+    padding:1px;
+    margin: 0;
+    background: none;
+    outline:none;
+    border-radius:3px;
+    -webkit-border-radius:3px;
+    -moz-border-radius:3px;
+    box-shadow: 0 0 5px rgba(0, 0, 255, 0.7);
+    -webkit-box-shadow: 0 0 5px rgba(0, 0, 255, 0.2); 
+    -moz-box-shadow: 0 0 5px rgba(0, 0, 255, 0.2);
+    border:1px solid rgba(0,0,255, 0.2);
+
+}
+#tested-items td input[type~="text"]:focus{
+    transition: all 0.25s ease-in-out;
+    -webkit-transition: all 0.25s ease-in-out;
+    -moz-transition: all 0.25s ease-in-out; 
+    box-shadow: 0 0 5px rgba(0, 0, 255, 1);
+    -webkit-box-shadow: 0 0 5px rgba(0, 0, 255, 1); 
+    -moz-box-shadow: 0 0 5px rgba(0, 0, 255, 1);
+    border:1px solid rgba(0,0,255, 0.8); 
+}
+
+#tested-items td input.error{
+    box-shadow: 0 0 5px rgba(255, 0, 0, 1);
+    -webkit-box-shadow: 0 0 5px rgba(255, 0, 255, 1); 
+    -moz-box-shadow: 0 0 5px rgba(255, 0, 0, 1);
+    border:1px solid rgba(255,0,0, 0.8); 
+}
+#tested-items td input.integer {
+    text-align: right;
+}
+
+#tested-items td label{
+    display: none;
+}
+#tested-items td label.option{
+    display: inline;
+}
+#tested-items td label input{
+    display:inline;
+}
+
+/*dimensione del contenitore dei grafici*/
+#graph { height: 300px; } 
+#MTBF { height: 350px;} 
+
+
+
+.manutenzione_preventiva table{
+
+}
+
+html.js fieldset.collapsible.collapsed.tabella_rischi legend a {
+    background: url("icons/png/32x32/Add folder.png") no-repeat scroll 0 50% rgba(0, 0, 0, 0);
+    background-size: 18px 18px;
+}
+
+html.js fieldset.collapsible.tabella_rischi legend a {
+    background: url("icons/png/32x32/Close folder.png") no-repeat scroll 0 50% rgba(0, 0, 0, 0);
+    background-size: 18px 18px;
+}
+
+/* preventive */
+html.js fieldset.collapsible.manutenzione_preventiva legend a{
+    background: url("icons/png/32x32/Wide brush.png") no-repeat scroll 0 50% rgba(0, 0, 0, 0);
+    background-size: 18px 18px;
+    padding-left:1.5em;
+}
+
+html.js fieldset.collapsible.scadenza_preventive legend a {
+    background: url("icons/png/32x32/Decrease time.png") no-repeat scroll 0 50% rgba(0, 0, 0, 0);
+    background-size: 18px 18px;
+}
+html.js fieldset.collapsible.collapsed.scadenza_preventive legend a {
+    background: url("icons/png/32x32/Increase time.png") no-repeat scroll 0 50% rgba(0, 0, 0, 0);
+    background-size: 18px 18px;
+}
+
+/* richieste manutenzioni*/
+html.js fieldset.collapsible.richiesta_associata legend a {
+    background: url("icons/png/32x32/Equipment.png") no-repeat scroll 0 50% rgba(0, 0, 0, 0);
+    background-size: 18px 18px;
+    padding-left:1.5em;
+}
+/*sotto cartelle*/
+html.js fieldset.collapsible.richiesta_associata td legend a {
+    background: url("icons/png/32x32/settings.png") no-repeat scroll 0 50% rgba(0, 0, 0, 0);
+    background-size: 18px 18px;
+    padding-left:1.5em;
+}
+
+/*dati di targa */
+html.js fieldset.collapsible.dati_targa legend a {
+    background: url("icons/png/32x32/Form.png") no-repeat scroll 0 50% rgba(0, 0, 0, 0);
+    background-size: 18px 18px;
+    padding-left:1.5em;
+}
+html.js fieldset.collapsible.grafici legend a {
+    background: url("icons/png/32x32/Chart xy.png") no-repeat scroll 0 50% rgba(0, 0, 0, 0);
+    background-size: 18px 18px;
+    padding-left:1.5em;
+}
+
+html.js fieldset.collapsible.inventario legend a {
+    background: url("icons/png/32x32/Red book.png") no-repeat scroll 0 50% rgba(0, 0, 0, 0);
+    background-size: 18px 18px;
+    padding-left:1.5em;
+}
+
+html.js fieldset.collapsible.sistema legend a {
+    background: url("icons/png/32x32/Registry.png") no-repeat scroll 0 50% rgba(0, 0, 0, 0);
+    background-size: 18px 18px;
+    padding-left:1.5em;
+}
+html.js fieldset.collapsible.verifiche legend a {
+    background: url("icons/png/32x32/Search.png") no-repeat scroll 0 50% rgba(0, 0, 0, 0);
+    background-size: 18px 18px;
+    padding-left:1.5em;
+}
+
+html.js fieldset.collapsible.richiesta_associata legend a:before,
+html.js fieldset.collapsible.manutenzione_preventiva legend a:before,
+html.js fieldset.richiesta_associata td fieldset.collapsible legend a:before,
+html.js fieldset.collapsible.dati_targa legend a:before,
+html.js fieldset.collapsible.grafici  legend a:before,
+html.js fieldset.collapsible.inventario legend a:before,
+html.js fieldset.collapsible.sistema legend a:before,
+html.js fieldset.collapsible.verifiche legend a:before{
+    content:"-  ";
+}
+html.js fieldset.collapsible.collapsed.richiesta_associata legend a:before,
+html.js fieldset.collapsible.collapsed.manutenzione_preventiva legend a:before,
+html.js fieldset.richiesta_associata  td fieldset.collapsible.collapsed legend a:before, 
+html.js fieldset.collapsible.collapsed.dati_targa legend a:before,
+html.js fieldset.collapsible.collapsed.grafici legend a:before,
+html.js fieldset.collapsible.collapsed.inventario legend a:before,
+html.js fieldset.collapsible.collapsed.sistema legend a:before,
+html.js fieldset.collapsible.collapsed.verifiche legend a:before{
+    content:"+ ";
+}
+
+/* 
+* N non trovato 
+* P pianificato con A MP e P vs
+* E Effettuato con C MP e A C V di VS
+* R Ritardato S R T MP
+*/
+.legenda[value="N"]{
+    background: url("../icons/128x128/emblems/emblem-question-red.png") 0 50% /18px 18px no-repeat scroll rgba(0,0,0,0);
+    color:transparent;
+    background-position: center;
+}
+.legenda[value="P"]{
+    background: url("../icons/128x128/actions/view-calendar-timeline.png") 0 50% /18px 18px no-repeat scroll rgba(0,0,0,0);
+    color:transparent;
+    background-position: center;
+}
+.legenda[value="E"]{
+    background: url("../icons/128x128/actions/view-calendar-tasks.png") 0 50% /18px 18px no-repeat scroll rgba(0,0,0,0);
+    color:transparent;
+    background-position: center;
+}
+.legenda[value="R"]{
+    background: url("../icons/128x128/status/appointment-missed.png") 0 50% /18px 18px no-repeat scroll rgba(0,0,0,0);
+    color:transparent;
+    background-position: center;
+}
+
+/* icone stato scadenze manutentiva */
+
+td.APMP_STAT[value="A"],
+.VESI_STAT[value="A"]{
+    background: url("../icons/128x128/actions/view-calendar.png") 0 50% /18px 18px no-repeat scroll rgba(0,0,0,0);
+    color:transparent;
+    background-position: center;
+}
+
+td.APMP_STAT[value="C"],
+.VESI_STAT[value="C"] {
+    background: url("../icons/128x128/actions/view-calendar-tasks.png") 0 50% /18px 18px no-repeat scroll rgba(0,0,0,0);
+    color:transparent;
+    background-position: center;
+}
+
+td.APMP_STAT[value="S"] {
+    background: url("../icons/128x128/actions/view-calendar-upcoming-events.png") 0 50% /18px 18px no-repeat scroll rgba(0,0,0,0);
+    color:transparent;
+    background-position: center;
+}
+
+td.APMP_STAT[value="N"] {
+    background: url("icons/png/32x32/No.png") 0 50% /18px 18px no-repeat scroll rgba(0,0,0,0);
+    color:transparent;
+    background-position: center;
+}
+
+/*
+.VESI_STAT[value="A"] {
+    background: url("icons/png/32x32/Unlock.png") 0 50% /18px 18px no-repeat scroll   rgba(0,0,0,0);
+    color:transparent;
+    background-position: center;
+}
+*/
+
+.VESI_STAT[value="P"] {
+    background: url("../icons/128x128/actions/view-calendar-timeline.png") 0 50% /18px 18px no-repeat scroll   rgba(0,0,0,0);
+    color:transparent;
+    background-position: center;
+}
+
+
+.VESI_STAT[value="V"] {
+    background: url("../icons/128x128/actions/svn-update.png") 0 50% /18px 18px no-repeat scroll   rgba(0,0,0,0);
+    color:transparent;
+    background-position: center;
+}
+
+td.APMP_STAT[value="R"],
+.VESI_STAT[value="R"] {
+    background: url("../icons/128x128/status/appointment-missed.png") 0 50% /18px 18px no-repeat scroll rgba(0,0,0,0);
+    color:transparent;
+    background-position: center;    
+}
+
+td.APMP_STAT[value="T"],
+.VESI_STAT[value="T"] {
+    background: url("../icons/128x128/actions/view-calendar-time-spent.png") 0 50% /18px 18px no-repeat scroll rgba(0,0,0,0);
+    color:transparent;
+    background-position: center;   
+}
+
+td.APMP_STAT[value="N"],
+.VESI_STAT[value="N"] {
+    background: url("../icons/128x128/emblems/emblem-question-red.png") 0 50% /18px 18px no-repeat scroll rgba(0,0,0,0);
+    color:transparent;
+    background-position: center;   
+}
+/* icone manutenzione correttiva */
+td.RIIN_STAT[value="A"] {
+    background: url("icons/png/32x32/Stop.png") 0 50% /18px 18px no-repeat scroll  rgba(0,0,0,0);
+    color:transparent;
+    background-position: center;
+}
+td.RIIN_STAT[value="C"] {
+    background: url("icons/png/32x32/Ok.png") 0 50% /18px 18px no-repeat scroll  rgba(0,0,0,0);
+    color:transparent;
+    background-position: center;
+}
+td.RIIN_STAT[value="S"] {
+    background: url("icons/png/32x32/Wait.png") 0 50% /24px 24px no-repeat scroll   rgba(0,0,0,0);
+    color:transparent;
+    background-position: center;
+}
+.alert {
+    background: url("../icons/128x128/status/software-update-urgent.png") 0 50% /16px 16px no-repeat scroll  rgba(0,0,0,0);
+    color:transparent;
+    background-position: center;
+}
+
+.warning {
+    background: url("../icons/128x128/status/dialog-warning-2.png") 0 50% /16px 16px no-repeat scroll  rgba(0,0,0,0);
+    color:transparent;
+    background-position: center;
+}
+
+.ok {
+    background: url("../icons/128x128/status/security-high-2.png") 0 50% /16px 16px no-repeat scroll  rgba(0,0,0,0);
+    color:transparent;
+    background-position: center;
+}
+
+
+/*** 
+stili per le misure del contatto
+*/
+
+.misure th,
+.misure td{
+    border: 1px black solid;
+}
+
+.misure td td,
+.misure td th{
+    border: none;
+}
+
+.misure td table{
+    margin: 0;
+    border:none;
+}
+.misure td tbody{
+    border:none;
+}
+table.tempistiche td[is_close="0"]{
+    background: url("../icons/32x32/actions/configure-2.png") 0 50% /18px 18px no-repeat scroll   rgba(0,0,0,0);
+    color:transparent;
+    background-position: center;
+}
+table.tempistiche td[is_close="2"]{
+    background: url("../icons/32x32/status/dialog-warning-2.png") 0 50% /18px 18px no-repeat scroll   rgba(0,0,0,0);
+    color:transparent;
+    background-position: center;
+}
+table.tempistiche td[is_close="3"]{
+    background: url("../icons/32x32/actions/dialog-ok-apply-2.png") 0 50% /18px 18px no-repeat scroll   rgba(0,0,0,0);
+    color:transparent;
+    background-position: center;
+}
+table.misure td.out.count{
+    color:red;
+    font-weight: bold;
+}
+
+.highlight{
+    font-weight: bold;
+    color: red;
+}
