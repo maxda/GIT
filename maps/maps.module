@@ -1,0 +1,743 @@
+<?php
+// $Id$
+
+
+
+
+include_once(drupal_get_path('module','gratcore').'/gratcore.php.inc');
+include_once('maps.php.inc');
+
+
+function maps_init(){
+
+      drupal_add_js(drupal_get_path('module', 'maps') . '/js/maps.js','module');
+      drupal_add_css(drupal_get_path('module', 'maps') .'/css/maps.css','module');
+ 
+/* leaflet IE conditional CSS */      
+      drupal_set_html_head('<!--[if lte IE 8]><script language="javascript" type="text/javascript" src="'.
+                            drupal_get_path('module', 'maps') .'/css/leaflet.ie.css"></script><![endif]-->');
+      drupal_set_html_head('<!--[if lte IE 8]><script language="javascript" type="text/javascript" src="'.
+                            drupal_get_path('module', 'maps') .'/js/leaflet/leaflet.draw.ie.css"></script><![endif]-->');
+      
+    drupal_add_css(drupal_get_path('module', 'maps') .'/css/leaflet.css','module');
+    drupal_add_js(drupal_get_path('module', 'maps') . '/js/leaflet/leaflet-src.js','module');
+    drupal_add_css(drupal_get_path('module', 'maps') .'/js/leaflet/plugins/leaflet.draw.css','module');
+    drupal_add_js(drupal_get_path('module', 'maps') . '/js/leaflet/plugins/leaflet.draw-src.js','module');
+    drupal_add_css(drupal_get_path('module', 'maps') .'/js/leaflet/plugins/leaflet.zoomfs.css','module');
+    drupal_add_js(drupal_get_path('module', 'maps') . '/js/leaflet/plugins/leaflet.zoomfs.js','module');
+    drupal_add_css(drupal_get_path('module', 'maps') .'/js/leaflet/plugins/Leaflet.Coordinates.css','module');
+    drupal_add_js(drupal_get_path('module', 'maps') . '/js/leaflet/plugins/Leaflet.Coordinates.src.js','module');
+
+}
+
+
+function maps_help($path, $arg) {
+    $output = '';
+    switch ($path) {
+        case "admin/help#request":
+            $output = '<p>'.  t("modulo per la mappatura delle attrezzature") .'</p>';
+            break;
+    }
+    return $output;
+}
+
+/**
+ * Valid permissions for this module
+ * @return array An array of valid permissions for the onthisdate module
+ */
+
+function maps_perm() {
+    return maps_permission();
+}
+
+//function maps_access($op, $node) {
+////TODO:all
+///*
+//    switch ($op) {
+//        case 'create':
+//            return (user_access(_INSERT_TESTED) || user_access(_MANGE_TESTED) ) ;
+//            break;
+//        case 'delete':
+//            return (($user->uid==$node->uid && user_access(_DELETE_TESTED)) || user_access(_MANGE_TESTED) );
+//            break;
+//        case 'update':
+//            return(user_access(_MODIFY_TESTED)  || user_access(_MANGE_TESTED)  ) ;
+//            break;
+//        case 'view'  :
+//            return(($user->uid==$node->uid) || user_access(_MANGE_TESTED) || user_access(_VIEW_TESTED) )  ;
+//            break;
+//        default:
+//            return FALSE;
+//    }
+//*/
+//    return FALSE;
+//
+//}
+
+
+
+//function maps_cron() {
+//    
+//}
+
+
+
+/*-----------------------------node part -----------------------------------------*/
+
+
+
+//function maps_node_info() {
+//    return array(
+//    'maps' => array(
+//    'name' => t('Mappature'),
+//    'module' => 'maps',
+//    'description' => t("Mappature geografiche attrezzature"),
+//    'has_title' => TRUE,
+//    'title_label' => t('Mappature'),
+//    'has_body' => TRUE,
+//    'body_label' => t('Mappature'),
+//    )
+//    );
+//}
+
+
+function maps_form_alter(&$form, &$form_state, $form_id) {
+ 
+
+}
+
+
+function maps_form(&$node) {
+   
+    return $form;
+}
+
+
+
+//function maps_insert($node) {
+//    global $user;
+//
+///*
+//    db_query("INSERT INTO "._TESTED_TABLE."
+//            (nid,vid, ...)
+//	VALUES (%d, %d, ...)",
+//        $node->nid, $node->vid, ...);
+// *
+// */
+//
+//}
+//
+//function maps_update($node) {
+//    global $user;
+//
+//    if ($node->revision)
+//       tested_insert($node);
+//    else {
+///*        db_query("UPDATE "._TESTED_TABLE."
+//                    SET ...
+//               WHERE nid=%d and vid=%d",
+//           ...
+//            // WHERE fields
+//            $node->nid, $node->vid);
+// *
+// */
+//    }
+//}
+//
+//function maps_load($node) {
+//  
+//
+//}
+//
+//function maps_delete($node) {
+//
+//}
+//
+//
+//function maps_view($node, $teaser = FALSE, $page = FALSE) {
+//    return $node;
+//}
+
+
+
+//function maps_update_index() {
+//    $last = variable_get('node_cron_last', 0);
+//    $limit = (int)variable_get('search_cron_limit', 100);
+//
+//    $result = db_query_range('SELECT n.nid, c.last_comment_timestamp FROM {node} n LEFT JOIN {node_comment_statistics} c ON n.nid = c.nid
+//  			    WHERE n.status = 1 AND n.moderate = 0 AND (n.created > %d OR n.changed > %d OR c.last_comment_timestamp > %d)
+//  			    ORDER BY GREATEST(n.created, n.changed, c.last_comment_timestamp) ASC', $last, $last, $last, 0, $limit);
+//
+//    while ($node = db_fetch_object($result)) {
+//        $last_comment = $node->last_comment_timestamp;
+//        $node = node_load(array('nid' => $node->nid));
+//
+//        // We update this variable per node in case cron times out, or if the node
+//        // cannot be indexed (PHP nodes which call drupal_goto, for example).
+//        // In rare cases this can mean a node is only partially indexed, but the
+//        // chances of this happening are very small.
+//        variable_set('node_cron_last', max($last_comment, $node->changed, $node->created));
+//
+//        // Get node output (filtered and with module-specific fields).
+//        if (node_hook($node, 'view')) {
+//            node_invoke($node, 'view', false, false);
+//        }
+//        else {
+//            $node = node_prepare($node, false);
+//        }
+//        // Allow modules to change $node->body before viewing.
+//        node_invoke_nodeapi($node, 'view', false, false);
+//
+//        $text = '<h1>'. $node->title .'</h1><h1>'. $node->body.'</h1>';
+//
+//        // Fetch extra data normally not visible
+//        $extra = node_invoke_nodeapi($node, 'update index');
+//        foreach ($extra as $t) {
+//            $text .= $t;
+//        }
+//
+//        // Update index
+//        search_index($node->nid, 'node', $text);
+//    }
+//}
+//
+///********************************************************************************************************
+//			SETTAGGIO AZIONI (TRIGGER)
+//*******************************************************************************************************/
+////TODO: implementare le azioni
+//function maps_action_info() {
+//    return array(
+//    'tested_done' => array(
+//    'description' => t('Map DONE'),
+//    'type' => 'node',
+//    'configurable' => TRUE,
+//    'hooks' => array(
+//    'nodeapi' => array('insert', 'update'),
+//    )
+//    )
+//    );
+//}
+//
+//function maps_done_action(&$node,$context){
+//
+//}
+//
+///********************************************************************************************************/
+//
+///* modyfy normal node fields to hide unused ones
+//function maps_form_aler(&$form, $form_state, $form_id){
+//
+//}*/
+///*-----------------------------BLOCK PART-----------------------------------------*/
+//
+//function maps_block($op='list', $delta=0, $edit=array() ) {
+//
+//} //function request_block()
+//
+
+
+/*------------------------------------menu hook-----------------------------------
+ **/
+function maps_menu() {
+
+    /*
+    $items['tested/list'] = array(
+        'title' => 'Tutti i collaudi',
+        //'page callback' => 'drupal_get_form',
+        'page callback' => 'filtered_list',
+        //'page arguments' => array(2),
+        'access arguments' => array( _VIEW_RCQ ),
+
+    );
+*/
+    $items['admin/settings/maps'] = array(
+        'title' => 'Mappe',
+        'description'=>' carica le mappe e i relativi layer',
+        'page callback' => 'drupal_get_form',
+        'page arguments'=>array('admin_maps'),
+        'access arguments' => array( _ADMIN_MAPS ),
+        'type'=>MENU_NORMAL_ITEM,
+    );
+    $items['admin/settings/maps/%'] = array(
+        'title' => 'Mappe',
+        'description'=>' carica le mappe e i relativi layer',
+        'page callback' => 'drupal_get_form',
+        'page arguments'=>array('base_layer_add_form',3),
+        'access arguments' => array( _ADMIN_MAPS ),
+        'type'=>MENU_CALLBACK
+    );
+    $items['admin/settings/maps/add'] = array(
+        'title' => 'Mappe',
+        'description'=>' carica le mappe e i relativi layer',
+        'page callback' => 'drupal_get_form',
+        'page arguments'=>array('base_layer_add_form',3),
+        'access arguments' => array( _ADMIN_MAPS ),
+        'type'=>MENU_LOCAL_TASK
+    );
+    $items['admin/settings/maps/%/delete'] = array(
+        'title' => 'Mappe',
+        'description'=>' carica le mappe e i relativi layer',
+        'page callback' => 'drupal_get_form',
+        'page arguments'=>array('base_layer_delete_form',3),
+        'access arguments' => array( _ADMIN_MAPS ),
+        'type'=>MENU_CALLBACK
+    );
+    $items['maps/js/geojson'] = array(
+        'title' => 'GeoJson responder',
+        'description'=>'menu di servizio per i trasferimenti AJAX',
+        'page callback' => 'GeoJSON_js',
+        'access arguments' => array( _VIEW_MAPS ),
+        'type'=>MENU_CALLBACK
+    );
+    
+/*    $items['tested'] = array(
+        'title' => 'Tutti i collaudi',
+        'page callback' => 'tested_list',
+        'access arguments' => array( _VIEW_TESTED ),
+
+    );
+    $items['tested/import'] = array(
+        'title' => 'Importa/aggiorna collaudi',
+        //'page callback' => 'drupal_get_form',
+        'page callback' => 'load_tested',
+        //'page arguments' => array(2),
+        'access arguments' => array( _MANGE_TESTED ),
+        'file'=>'import.php.inc',
+
+    );
+     $items['tested/ascott/%/%'] = array(
+        'title' => 'Mostra dati ordine',
+        //'page callback' => 'drupal_get_form',
+        'page callback' => 'ascott_order',
+        'page arguments' => array(2,3),
+        'access arguments' => array( _MANGE_TESTED ),
+        'file'=>'ascott_lnk.php.inc',
+        'type' => MENU_LOCAL_TASK,
+
+    );
+    $items['tested/si3c/%/%'] = array(
+        'title' => 'Mostra dati Si<sup>3</sup>C',
+        //'page callback' => 'drupal_get_form',
+        'page callback' => 'test_si3c',
+        'page arguments' => array(2,3),
+        'access arguments' => array( _VIEW_TESTED ),
+        'file'=>'si3c_lnk.php.inc',
+        'type' => MENU_LOCAL_TASK,
+
+    );
+    $items['tested/plug-in/%tested_plugin'] = array(
+        'title' => 'Mostra dati su altri sistemi',
+        'access arguments' => array( _VIEW_TESTED ),
+        'type' => MENU_LOCAL_TASK,
+    );
+*/
+
+    return $items;
+}
+
+
+
+//function maps_theme() {
+//
+//    return $theme;
+//
+//}
+
+/* hook di update della struttura*
+ *
+ */
+
+function maps_structure_move($id_source,$id_destination){
+//TODO:ALL
+/*   $qy='SELECT DISTINCT nid FROM '._REQUESTS_TABLE.' WHERE struct=%d';
+   $res=db_query($qy,$id_source);
+   while($rs=db_fetch_object($res)){
+        $node=node_load($rs->nid);
+        $node->struct=$id_destination;
+        $src=get_structure($id_source);
+        $dst=get_structure($id_destination);
+        $node->log='Aggiornamento struttura da '.$src[0].' a '.$dst[0];
+        node_save($node);
+   }
+*/
+//    db_query(
+//       'UPDATE '._REQUESTS_TABLE.' SET struct=%d WHERE struct=%d',$id_destination,$id_source
+//    );
+}
+
+
+
+
+function base_layer_add_form(&$form_status,$lid){
+    $is_edit=FALSE;
+    $name='';
+    $lat0=$lat1=$lng0=$lng1='0';
+    if ($lid !=='add' && is_numeric($lid)){ //è una modifica 
+        $qy= db_query("SELECT * FROM {layers} WHERE lid=%d",$lid);
+        if ($r=  db_fetch_object($qy)){
+            $name=$r->name;
+            $lat0=$r->lat0;
+            $lng0=$r->lng0;
+            $lat1=$r->lat1;
+            $lng1=$r->lng1;
+            $file=db_fetch_object(db_query("SELECT * FROM {files} WHERE fid=%d",$r->fid));
+            $form['fid']=array('#type'=>'hidden','#value'=>$r->fid);
+            $form['lid']=array('#type'=>'hidden','#value'=>$r->lid); 
+            $form['layer_tool']=  layer_edit_tool($r,$file,array(array((double)$lat0,(double)$lng0),array((double)$lat1,(double)$lng1)));
+            $form['layer_tool']['#type']='fieldset';
+            $form['layer_tool']['#collapsible']=TRUE;
+            $form['layer_tool']['#title']='Mappa';
+            $form['layer_tool']['#tree']=TRUE;
+            $form['layer_tool']['#prefix']='<div id="map-editor">';
+            $form['layer_tool']['#suffix']='</div>';
+            $is_edit=TRUE;
+        }
+    }    
+    $form['name']=array(
+        '#title'=>'Nome',
+        '#description'=>'Descrizione mappa',
+        '#default_value'=>$name,
+        '#type'=>'textfield',
+    );
+    $form['coordinates']=array(
+        '#type'=>'fieldset',
+        '#description'=>'Coordinate margini dell\'immagine. Le coordinate sono numeri con 4 decimali separati dal punto es. <i>45.8323</i><br/>',
+        '#attributes'=>array('class'=>'container-inline')
+    );
+    $form['coordinates']['lat0']=array(
+        '#title'=>'Lat. inferiore',
+//        '#description'=>'latitudine margine inferiore',
+        '#default_value'=>$lat0,
+        '#size'=>11,
+        '#type'=>'textfield',
+        '#attributes'=>array('style'=>'direction: rtl')
+    );
+    $form['coordinates']['lng0']=array(
+        '#title'=>'Lon. sinistra',
+//        '#description'=>'longitudine margine sinistro',
+        '#default_value'=>$lng0,
+        '#size'=>11,
+        '#type'=>'textfield',
+        '#attributes'=>array('style'=>'direction: rtl')
+    );
+    $form['coordinates']['lat1']=array(
+        '#title'=>'Lat. superiore',
+//        '#description'=>'latitudine margine superiore',
+        '#default_value'=>$lat1,
+        '#size'=>11,
+        '#type'=>'textfield',
+        '#attributes'=>array('style'=>'direction: rtl')
+    );
+    $form['coordinates']['lng1']=array(
+        '#title'=>'Lon. destra',
+//        '#description'=>'longitudine margine destro',
+        '#default_value'=>$lng1,
+        '#size'=>11,
+        '#type'=>'textfield',
+        '#attributes'=>array('style'=>'direction: rtl')
+    );
+    $form['map_file']=array(
+        '#title'=>'File',
+        '#description'=>'file della mappa ',
+        '#type'=>'file',
+    );
+    $form['button']=array(
+        '#value'=>($is_edit?'Modifica':'Aggiungi'),
+        '#type'=>'submit',
+    );
+    
+    $form['#attributes']['enctype'] = 'multipart/form-data';
+    $form['#redirect']=array('admin/settings/maps');
+//    $form['button']=array(
+//        '#value'=>'Modifica',
+//        '#type'=>'submit',
+//    );
+    return $form;
+}
+
+function base_layer_add_form_submit($form, &$form_state){
+    $values=$form_state['values'];
+    $GeoJSON=$form_state['storage']['GeoJSON'];//contenitore degli oggetti registrati
+    $op=$values['op'];
+    $path=  file_create_path('map_files');
+//TODO: verificare eventuali errori di creazione
+    file_check_directory($path,FILE_CREATE_DIRECTORY);
+    $map_file=file_save_upload('map_file',array(),$path,FILE_EXISTS_RENAME); //salva il file temporneamente 
+    switch ($op){
+//TODO: inserire i validatori di file        
+        case 'Modifica':
+            if (isset($values['layer_tool']['geoKeep']) && isset($GeoJSON)){
+                $first=TRUE;
+                foreach ($GeoJSON as $key=>$obj){
+                    if (!$values['layer_tool']['geoKeep'][$key]) continue; // il checkbox non è settato non si registra l'oggetto
+                    $feature=array();
+                    $recordID=json_decode($obj); //estrazione dati proprietà oggetto GEO per recupero dell'id del record
+                    $feature['name']=$values['layer_tool']['geoName'];
+                    $feature['data']=$obj;
+                    save_loaded_features($feature,$values['lid']);
+                }
+            }
+//TODO: salvataggio delle forme contenute nella $form_state['storage']['GeoJSON'][]  
+//      i check box del salvataggio sono contenuti in $values['layer_tool']['geoKeep']
+        case 'Aggiungi':     
+            if( $map_file){
+                file_set_status($map_file, FILE_STATUS_PERMANENT); // rende permanente il file
+                if (isset($values['fid'])) file_upload_delete($values['fid']);// elimina il file precedente (nel caso di modifica
+                $values['fid']=$map_file->fid; // registra il nuovo file id
+            }    
+            if (isset($values['lid'])) {// se esiste il Lid è un aggiornamento
+                drupal_write_record('layers', $values, 'lid');
+            } else { 
+                drupal_write_record('layers', $values);
+            }
+            break;
+    }
+}
+
+
+function admin_maps(&$form_status){
+    
+    $qy=db_query("SELECT * FROM {layers} WHERE parent_lid=0");
+    while($rw=  db_fetch_object($qy)){
+        $rows[]=array(
+          $rw->name,
+          json_encode(array(array((double)$rw->lat0,(double)$rw->lng0),array((double)$rw->lat1,(double)$rw->lng1))),  
+          l('modifica','admin/settings/maps/'.$rw->lid),
+          l('Cancella','admin/settings/maps/'.$rw->lid.'/delete'),
+        );
+        
+    }
+    $out=isset($rows)?theme('table',array('mappa','posizione geografica immagine','',''),$rows):'';
+    $out.=l('Nuova','admin/settings/maps/add');
+    
+    return array(array('#value'=>$out));
+}
+/**
+ * cancella file dal sistema 
+ * @param int $fid file id
+ * @return boolean falso se errore
+ */
+function file_upload_delete($fid){
+    if($fid=== 0 || ! is_numeric($fid) ) return FALSE;
+    $qy=  db_query("SELECT * FROM {files} WHERE fid=%d",$fid);
+    while ($r=  db_fetch_object($qy)){
+        if (file_delete($r->filepath)){
+            db_query("DELETE FROM {files} WHERE fid=%d",$r->fid);
+        }
+    }
+    return TRUE;
+}
+
+function base_layer_delete_form(&$form_status,$lid){
+     if($lid=== 0 || ! is_numeric($lid) ) return array('#redirect'=>array('admin/settings/maps'));
+     $nome=db_result(db_query("SELECT name FROM {layers} WHERE lid=%d",$lid));
+     $form['itm']=array(
+         '#value'=>"Vuoi veramente cancellare la mappa <b>".$nome."</b> ?",
+         '#type'=>'item',
+     );
+     $form['lid']=array(
+         '#value'=>$lid,
+         '#type'=>'hidden',
+     );
+     $form['confirm']=array(
+         '#type'=>'submit',
+         '#value'=>'Conferma',
+     );
+     $form['Annulla']=array(
+         '#value'=>l('Annulla','admin/settings/maps'),
+     );
+     $form['#redirect']=array('admin/settings/maps');
+     return $form ;
+}
+
+function base_layer_delete_form_submit($form, &$form_status){
+    $values=$form_status['values'];
+    if ($values['op']=='Conferma'){
+       if (file_upload_delete(db_result(db_query("SELECT fid FROM {layers} WHERE lid=%d",$values['lid']))))
+           db_query("DELETE FROM {layers} WHERE lid=%d",$values['lid']);
+    }
+}
+
+function layer_edit_tool($layer,$file,$position){
+// $f variabile che contiene tutti i campi del layer tool
+    if(!$file) return array('#value' => 'No map File');
+    if(!$layer) return array('#value' => 'No map');
+    
+//salva le forme salvate da caricare sulla mappa
+    drupal_add_js(array('features'=>  load_saved_features($layer)),'setting');
+   
+    $imgPosition=  json_encode($position);
+    $f['map'] = array(
+        '#value'=>'<div id="map-'.$layer->lid.'" class="map" mapFile="'.$file->filepath.'" 
+            name="'.$layer->name.'" imgPosition="'.$imgPosition.'" 
+            style="width:800px; height:600px"></div>
+            <div class="ctrl" id="ctrl-map-'.$layer->lid.'"></div>',
+    );
+    //campo per il controllo dell'evento da javascript
+    $f['GeoJSON-command']=array(
+        '#type'=>'hidden',
+        '#ahah'=>array(
+            'path'=>'maps/js/geojson',
+            'wrapper'=> ('ctrl-map-' . $layer->lid) ,
+            'event'=>'change',
+            'method'=>'replace',
+            
+        ),
+        
+    );
+    // campo di transito per l'ID temporaneo di riferimento negli oggetti javascript 
+    $f['GeoJSON-ID']=array(
+        '#type'=>'hidden',
+    );
+    // campo di transito per l'oggetto GeoJSON
+    $f['GeoJSON']=array(
+        '#type'=>'hidden',
+    );
+    
+//    $f['ctrl']=array(
+//        '#type'=>'radios',
+//        '#title'=>'',
+//        '#options'=>array('drag','point','polygon'),
+//        '#default_value'=>1,
+//        '#attributes'=>array('class'=>'map-ctrl'),
+//    );
+    return $f;
+
+}
+
+function GeoJSON_js(){
+    //carica la form 
+    $f_id=$_POST['form_build_id'];
+    $f_s = array('submitted' => FALSE);
+    
+    if (!$f= form_get_cache($f_id, $f_s)) {
+        exit();
+    }
+    $jID=$_POST['layer_tool']['GeoJSON-ID']; // recupera l'indice dei salvataggi correnti
+    $GeoJSON=$_POST['layer_tool']['GeoJSON']; //recupera l'oggetto GEO
+    if ($GeoJSON!=='{}'){
+        //aggiunge un checkbox per tenere la nuova forma
+        $label=  json_decode($GeoJSON);
+        $f['layer_tool']['geoKeep'][$jID]=array(
+            '#type'=>'checkbox',
+            '#title'=>'',
+            '#default_value'=>1,
+            '#prefix'=>'<div id="container'.$jID.'" class="geo-labels container-inline">'
+        );
+        $name=($label->property->name?$label->property->name:$label->geometry->type. ' ' .$jID);
+        $f['layer_tool']['geoName'][$jID]=array(
+            '#type'=>'textfield',
+            '#title'=>'',
+            '#size'=>10,
+            '#default_value'=>$name,
+            '#suffix'=>'</div>'
+        );
+        
+        $f_s['storage']['GeoJSON'][$jID]=$GeoJSON;
+        $_POST['layer_tool']['geoKeep'][$jID]=1;
+        $_POST['layer_tool']['geoName'][$jID]=$name;
+    } else { // cancella il campo se esiste
+        unset($f['layer_tool']['geoKeep'][$jID]);
+        unset($f_s['storage']['GeoJSON'][$jID]);
+    }
+    // memorizza la form con le aggiunte
+     //registra l'oggetto scritto nel
+    form_set_cache($f_id, $f, $f_s);
+    $f += array(
+        '#post' => $_POST,
+        '#programmed' => FALSE,
+    ); 
+    $f=form_builder('base_layer_add_form',$f,$f_s); // ricostruisce la form
+    $element=$f['layer_tool']['geoKeep'];
+    $output = theme('status_messages');
+    foreach(element_children($element) as $key){
+         $output.= drupal_render($f['layer_tool']['geoKeep'][$key]); // produce l'html
+         $output.= drupal_render($f['layer_tool']['geoName'][$key]);
+    }
+    drupal_json(array('status' => TRUE, 'data' => $output)); 
+    
+//    exit();
+}
+/**
+ * 
+ * @param type $js_object
+ * @param array $property
+ * @return GeoJSON serialized new GeoJSON object with property
+ */
+
+function GeoJSON_add_proprty($js_object, array $properties){
+    
+    if (is_string($js_object))   
+        if(!$js_object=json_decode($js_object) ) return FALSE;
+    if (!is_array($properties))   return json_encode ($js_object); //ritorna l'oggetto se non ci sono proprietà
+    foreach ($properties as $name=>$value){
+        $js_object->properties->{$name}=$value;
+    }
+    return $js_object;
+}
+
+
+/**
+ * costruisce l'array degli oggetti salvati da ridisegnare 
+ * inserisce negli oggetti il record ID
+ * @param object $layer
+ */
+function load_saved_features($layer){
+    $remaining=array();
+    array_push($remaining, $layer);
+    $limit=0; $features=array();
+    $qy="SELECT * FROM layers WHERE parent_lid = %d";
+    while (!empty($remaining) && $limit<=1000){
+        $l=  array_pop($remaining);
+        if(!$l->data) continue;// non carica le geometrie vuote
+        $q=  db_query($qy,$l->lid);
+        while ($r=  db_fetch_object($q)){
+            array_push($remaining, $r);
+        }
+        $features[]= GeoJSON_add_proprty($l->data, array('recordID'=>$l->lid,'name'=>$l->name));
+        $limit++;
+    }
+    return $features;
+}
+
+
+/**
+ * salva la geometria (feature) nel DB aggiornando e cancellando secondo necessità
+ * @param array $feature, contiene la geometria 
+ *                  'name' contiene il nome
+ *                  'data' l'oggetto o la stringa GeoJSON  
+ *         
+ * @param type $parent_lid
+ */
+function save_loaded_features($feature,$parent_lid=0){
+// estrazione lid feature modificate e separazione nuove feature e cancellazion 
+    if (!is_object($feature['data'])) $feature['data']=json_decode($feature['data']);
+    if (!isset($feature['data']->properties->recordID)) {
+        if(isset($feature['data']->properties->delete_me)){
+            // separa cancellazioni
+            if ($lid!=$parent_lid) 
+                // cancellazione features
+                db_query('DELETE FROM {layers} WHERE lid=%d',$lid);
+        } else {
+            //separa modifiche
+            $feature['lid']=$feature->properties->recordID;
+            $feature->properties->name=$feature['name'];
+            $feature['data']=json_encode($feature['data']);
+            // update feature modificate
+            if ($lid!=$parent_lid) {
+                drupal_write_record('layers', $feature,'lid');
+            }
+        }
+    } else{
+        // inserimento nuove featue
+        $feature['data']=json_encode($feature['data']);
+        $feature['parent_lid']=$parent_lid;
+        drupal_write_record('layers', $feature);
+         // aggiornamento oggetto GeoJSON con id record
+        $feature['data']=json_encode(GeoJSON_add_proprty($feature['data'], 
+                                  array('recordID'=>$feature['lid'],
+                                        'name'=>$feature['name']))
+        );
+        drupal_write_record('layers', $feature,'lid');
+    }      
+}

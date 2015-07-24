@@ -1,0 +1,45 @@
+<?php
+function maps_uninstall() {
+/*        db_query("DELETE a FROM ");
+	  variable_del("");
+*/
+	$qy=db_query('SELECT fid FROM {layers} WHERE fid<>0');
+        while($r=  db_fetch_object($qy)){
+            file_upload_delete($r->fid);
+        }
+	drupal_uninstall_schema('maps');
+}
+
+
+function maps_schema(){	
+        $schema['layers']=array(
+            'description'=>'Stores layers and any associated info',
+            'fields'=>array(
+                'lid'=>array('description'=>'layer id', 'type'=>'serial',  'not null'=>TRUE),
+                'name'=>array('description'=>'Nome','type'=>'varchar','length'=>100,'not null' => TRUE, 'default'=>'a map...'),
+                // parent_lid riferimento all'elemento contenitore dell'elemento in questione. Se 0 è l'elemento radice o uno degli elementi radice
+                'parent_lid'=>array('description'=>'parent layer id','type'=>'int','unsigned' => TRUE, 'not null' => TRUE,'default'=>0),
+                'lat0'=>array('description'=>'latitudine immagine margine inferiore','type'=>'numeric','precision'=>20,'scale'=>15,'not null' => TRUE, 'default'=>'0'),
+                'lng0'=>array('description'=>'longitudine immagine margine sinistro','type'=>'numeric','precision'=>20,'scale'=>15,'not null' => TRUE, 'default'=>'0'),
+                'lat1'=>array('description'=>'latitudine immagine margine superiore','type'=>'numeric','precision'=>20,'scale'=>15,'not null' => TRUE, 'default'=>'0'),
+                'lng1'=>array('description'=>'longitudine immagine margine destro','type'=>'numeric','precision'=>20,'scale'=>15,'not null' => TRUE, 'default'=>'0'),
+                'fid'=>array('type'=>'int','unsigned' => TRUE, 'not null' => TRUE,'default'=>0),
+                'data'=>array('description'=>'specific serialized file map info', 'type'=>'text','size'=>'big','not null'=>FALSE)
+            ),
+            'primary key'=>array('lid'),
+            'indexes'=>array(
+                'fid'=>array('fid'),
+                'children'=>array('lid', 'parent_lid'),
+                'parent_idx'=>array('parent_lid')
+            ),     
+        );
+               
+        
+	return $schema;
+}
+
+function maps_install() {
+    drupal_install_schema('maps');
+}
+
+

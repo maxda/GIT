@@ -1,0 +1,9 @@
+; $Id$
+name = maps
+description = Modulo per la mappatura geografica/fisica. 
+core = 6.x
+dependencies[] = gratcore
+;dependencies[] = Upload
+package =  GRAT
+version = 6.x-0.0
+

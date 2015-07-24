@@ -1,0 +1,23 @@
+/* 
+    Document   : maps
+    Created on : 12-ott-2013, 16.26.14
+    Author     : massimo
+    Description:
+        Purpose of the stylesheet follows.
+*/
+
+.map{
+    width:800px;
+    height:600;
+    float:left;
+}
+/* contenitore raccolta ettichette e checkbox di edit delle geometrie*/
+.map-ctrl{
+    float: right
+}
+
+
+/* contenitore ettichette */
+.geo-labels{
+    
+}
