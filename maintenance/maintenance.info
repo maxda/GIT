@@ -1,0 +1,10 @@
+; $Id$
+name = maintenance
+description = Modulo per la grestione delle manutenzioni Biomedicali. 
+core = 6.x
+dependencies[] = gratcore 
+dependencies[] = upload
+dependencies[] = tested
+package =  GRAT
+version = 6.x-0.1
+

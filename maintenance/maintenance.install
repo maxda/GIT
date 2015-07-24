@@ -1,0 +1,218 @@
+<?php
+
+include_once('maintenance.php.inc');
+
+function maintenance_uninstall() {
+    db_query("DELETE a FROM {node_revisions} as a, {node} as n WHERE n.type='maintenance' AND  n.nid=a.nid");
+    db_query("DELETE a FROM {comments} as a, {node} as n WHERE n.type='maintenance' AND  n.nid=a.nid");
+    db_query("DELETE FROM {node} WHERE type='maintenance'");
+//    variable_del('');
+    drupal_uninstall_schema('maintenance');
+}
+
+function maintenance_schema() {
+    $schema['fees'] = array(
+        'description' => t('Canoni manutenzione'),
+        'fields' => array(
+            'nid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'disp-width' => '10'),
+            'vid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'disp-width' => '10'),
+            'APPA_CODI' => array('description' => 'id manutentore', 'type' => 'int', 'not null' => FALSE, 'default' => 0),
+            'ANNO' => array('description' => 'anno ascott', 'type' => 'int', 'not null' => FALSE, 'default' => 0),
+            'NUMERO_INTROITO' => array('description' => 'Introito Ascott', 'type' => 'int', 'not null' => FALSE, 'default' => 0),
+            'value' => array('description' => 'Prezzo di acquisto', 'type' => 'numeric', 'not null' => FALSE, 'precision' => '19', 'scale' => '4',),
+            'fee' => array('description' => 'Canone', 'type' => 'numeric', 'not null' => FALSE, 'precision' => '19', 'scale' => '4',),
+            'S_N' => array('description' => 'Serial Number', 'type' => 'varchar', 'length' => '50', 'not null' => FALSE,),
+            'class' => array('description' => 'CIVAB CLASS', 'type' => 'varchar', 'length' => '50', 'not null' => FALSE,),
+            'idcnd' => array('description' => 'Codice CND', 'type' => 'varchar', 'length' => '50', 'not null' => TRUE, 'default' => 'XXXXXXXXXXXXXX'),
+            'fee_type' => array('description' => 'Tipo di canone', 'type' => 'int', 'not null' => FALSE, 'default' => 0),
+            'created' => array('description' => 'ultimo aggiornamento', 'type' => 'int', 'not null' => FALSE, 'default' => 0),
+            'uid' => array('description' => 'ditta_produttrice', 'type' => 'int', 'not null' => FALSE, 'default' => 0),
+        ),
+        'primary key' => array('nid', 'vid'),
+        'unique keys'=>array(
+            'NUMERO_INTROITO'=> array('ANNO', 'NUMERO_INTROITO'),
+            'APPA_CODI' => array('APPA_CODI'),
+        ),
+        'indexes' => array(
+            'APPA_CODI' => array('APPA_CODI'),
+            'NUMERO_INTROITO' => array('ANNO', 'NUMERO_INTROITO'),
+            'S_N' => array('S_N'),
+            'class' => array('class'),
+            'idcnd' => array('idcnd'),
+            'created' => array('created'),
+        ),
+    );
+    $schema['fee_type'] = array(
+        'description' => t('tipologia canone'),
+        'fields' => array(
+            'typeid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
+            'type_description' => array('description' => 'tipo di canone', 'type' => 'varchar', 'length' => '50', 'not null' => FALSE,),
+        ),
+        'primary key' => array('nid', 'vid'),
+    );
+    /*
+      'referente_amministrativo' => array('description' => 'riferimento amministrativo della pratica', 'type' => 'varchar', 'length' => '50', 'not null' => FALSE,),
+      'ditta_produttrice' => array('description' => 'ditta_produttrice', 'type' => 'int', 'not null' => FALSE,),
+      'ditta_fornitrice' => array('description' => 'ditta fornitrice', 'type' => 'int', 'not null' => FALSE,),
+      'ditta_assistenza_tecnica' => array('description' => 'ditta assistenza tecnica', 'type' => 'int', 'not null' => FALSE,),
+      'note_particolari' => array('description' => 'note particolari', 'type' => 'text', 'size' => 'big', 'not null' => FALSE,),
+      'note_acquisto' => array('description' => 'note acquisto', 'type' => 'text', 'size' => 'big', 'not null' => FALSE,),
+      'data_consegna' => array('description' => 'data consegna', 'type' => 'varchar', 'length' => '50', 'not null' => FALSE,),
+      'data_1a_installazione' => array('description' => 'data prima installazione', 'type' => 'datetime', 'not null' => FALSE,),
+      'data_verifiche_manutentore' => array('description' => 'data verifiche appaltatore', 'type' => 'datetime', 'not null' => FALSE,),
+      'data_collaudo' => array('description' => 'data termine collaudo e messa in funzione', 'type' => 'datetime', 'not null' => FALSE,),
+      'contatto_reparto' => array('description' => 'contatto reparto', 'type' => 'varchar', 'length' => '50', 'not null' => FALSE,),
+      'ditta' => array('description' => 'ditta', 'type' => 'varchar', 'length' => '50', 'not null' => FALSE,),
+      'reparto' => array('description' => 'reparto', 'type' => 'varchar', 'length' => '50', 'not null' => FALSE,),
+      'verificatore' => array('description' => 'verificatore', 'type' => 'varchar', 'length' => '50', 'not null' => FALSE,),
+      'responsabile_sic' => array('description' => 'responsabile sic', 'type' => 'varchar', 'length' => '50', 'not null' => FALSE,),
+      'note_sostituzione_apparecchiature' => array('description' => 'note sostituzione apparecchiature', 'type' => 'text', 'size' => 'big', 'not null' => FALSE,),
+      'note_manutenzione' => array('description' => 'note manutenzione', 'type' => 'text', 'size' => 'big', 'not null' => FALSE,),
+      //timestamp va gestito a mano e serve per la compatibilità con le tabelle access
+      //           'TIMESTAMP' => array('description' => 'marcatura inserimetno campo', 'type' => 'datetime',
+      //                                 'mysql_type' => 'DATETIME','pgsql_type' => 'timestamp without time zone', 'sqlite_type' => 'VARCHAR','sqlsrv_type' => 'smalldatetime', 'not null' => FALSE,),
+      'nid' => array('description' => t('node id reference'), 'type' => 'int', 'not null' => TRUE, 'default' => 0,),
+      'vid' => array('description' => t('node version id reference'), 'type' => 'int', 'not null' => TRUE, 'default' => 0,),
+
+
+
+      /*
+      $schema['apparecchiature_per_ordine'] = array(
+      'description' => 'tabella che raccoglie le apparecchiature ordinate',
+      'fields' => array(
+      'ID' => array('description' => 'chiave di riferimento', 'type' => 'serial', 'not null' => TRUE,),
+      'numero_ordine' => array('description' => 'numero_ordine', 'type' => 'int', 'not null' => FALSE,),
+      'main_nid' => array('description' => 'riferimento base a principale di collaudo per sostituire il riferimento a "numero_ordine"', 'type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0,),
+      'nid' => array('description' => t('node id referece to request'), 'type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0,),
+      'quantita' => array('description' => t('quantita'), 'type' => 'int', 'not null' => FALSE,),
+      'apparecchiatura' => array('description' => t('descrizione apparecchiatura'), 'type' => 'varchar', 'length' => '50', 'not null' => FALSE,),
+      'produttore' => array('description' => t('Produttore'), 'type' => 'varchar', 'length' => '50', 'not null' => FALSE,),
+      'garanzia' => array('description' => t('Anni di garanzia'), 'type' => 'int', 'not null' => FALSE,),
+      'reparto' => array('description' => t('riferimento al reparto'), 'type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0,),
+      'note_installazione' => array('description' => t('Note di installazione'), 'type' => 'varchar', 'length' => '50', 'not null' => FALSE,),
+      'modello' => array('description' => t('modello apparecchiatura'), 'type' => 'varchar', 'length' => '50', 'not null' => FALSE,),
+      'inventario_aziendale' => array('description' => t('codice inventario_aziendaleale'), 'type' => 'varchar', 'length' => '50', 'not null' => FALSE,),
+      'etichetta_manutentore' => array('description' => t('codice ettichetta manutentore'), 'type' => 'int', 'not null' => FALSE,),
+      'matricola' => array('description' => t('matricola apparecchiatura'), 'type' => 'varchar', 'length' => '50', 'not null' => FALSE,),
+      //            'TIMESTAMP' => array('description' => t('campo per compatibilità access'), 'type' => 'timestamp', 'not null' => TRUE, 'default' => 'CURRENT_TIMESTAMP',),
+      ),
+      'primary key' => array('ID'),
+      'indexes' => array(
+      'numero_ordine' => array('numero_ordine'),
+      'main_nid' => array('main_nid'),
+      ),
+      );
+
+
+      $schema['tipologia_acquisto'] = array(
+      'description' => t('tipologie e modalità di acquisto dell\'apparecchiatura'),
+      'fields' => array(
+      'ID' => array('description' => t('progressivo chiave'), 'type' => 'serial', 'not null' => TRUE,),
+      'tipologia_acquisto' => array('description' => t('descrizione tipologia acquisto'), 'type' => 'char', 'length' => '50', 'not null' => FALSE,),
+      ),
+      'primary key' => array('ID'),
+      );
+
+      $schema['tipologia_apparecchiatura'] = array(
+      'description' => t('tipologia apparecchiatura'),
+      'fields' => array(
+      'ID' => array('description' => t('progressivo chiave'), 'type' => 'serial', 'not null' => TRUE,),
+      'tipo_apparecchiatura' => array('description' => t('descrizione tipologia apparecchiatura'), 'type' => 'char', 'length' => '50', 'not null' => FALSE,),
+      ),
+      'primary key' => array('ID'),
+      );
+
+
+      $schema['utenti_strutture'] = array(
+      'description' => t('associazione utenti alle strutture'),
+      'fields' => array(
+      'uid' => array('description' => t('ID utente'), 'type' => 'int', 'unsigned' => TRUE, 'not null' => FALSE,),
+      'name' => array('description' => t('nome utente'), 'type' => 'varchar', 'length' => '60', 'not null' => FALSE,),
+      'mail' => array('description' => t('mail utente'), 'type' => 'varchar', 'length' => '64', 'not null' => FALSE,),
+      'data' => array('description' => t('dati aggiuntivi utente'), 'type' => 'text', 'size' => 'big', 'not null' => FALSE,),
+      'rid' => array('description' => t('ID ruolo'), 'type' => 'int', 'unsigned' => TRUE, 'not null' => FALSE,),
+      'id' => array('description' => t('id locale'), 'type' => 'text', 'size' => 'big', 'not null' => FALSE,),
+      ),
+      );
+
+      $schema['elenco_reparti'] = array(
+      'description' => t('Tabella reparti e conversione a nuove assegnazioni'),
+      'fields' => array(
+      'ID' => array('description' => t('id originale'), 'type' => 'serial', 'not null' => TRUE,),
+      'nuovo_Id' => array('description' => t('id assegnato in GIT'), 'type' => 'char', 'length' => '50', 'not null' => FALSE,),
+      'abbreviazione' => array('description' => t('TODO: please describe this field!'), 'type' => 'char', 'length' => '50', 'not null' => FALSE,),
+      'nome_reparto' => array('description' => t('TODO: please describe this field!'), 'type' => 'char', 'length' => '50', 'not null' => FALSE,),
+      ),
+      'primary key' => array('ID'),
+      'indexes' => array(
+      'nuovo_Id' => array('nuovo_Id'),
+      ),
+      );
+      $schema['elenco_contatti'] = array(
+      'description' => t('collezione elenco_contatti'),
+      'fields' => array(
+      'ID_contatti' => array('description' => t('ID contatto'), 'type' => 'serial', 'not null' => TRUE,),
+      'riferimento_ditta_old' => array('description' => t('Descrizione'), 'type' => 'int', 'not null' => FALSE,),
+      'cognome_nome' => array('description' => t('nome e cognome riferimento'), 'type' => 'char', 'length' => '255', 'not null' => FALSE,),
+      'incarico' => array('description' => t('ruolo o riferimento'), 'type' => 'char', 'length' => '255', 'not null' => FALSE,),
+      'cellulare' => array('description' => t('cellulare'), 'type' => 'char', 'length' => '255', 'not null' => FALSE,),
+      'email' => array('description' => t('mail'), 'type' => 'char', 'length' => '255', 'not null' => FALSE,),
+      'id_ditta' => array('description' => t('riferimento ditta (id)'), 'type' => 'int', 'not null' => FALSE,),
+      ),
+      'primary key' => array('ID_contatti'),
+      'indexes' => array(
+      'id_ditta' => array('id_ditta'),
+      ),
+      );
+      $schema['documentazioni_richieste'] = array(
+      'description' => t('TODO: please describe this table!'),
+      'fields' => array(
+      'ID' => array('description' => t('progressivo (inutile)'), 'type' => 'serial', 'not null' => TRUE,),
+      'numero_ordine' => array('description' => t('numero_ordine'), 'type' => 'int', 'not null' => FALSE,),
+      'certificazioni' => array('description' => t('certificazioni'), 'type' => 'int', 'size' => 'tiny', 'not null' => FALSE,),
+      'manuale_uso_cartaceo' => array('description' => t('manuale uso cartaceo'), 'type' => 'int', 'size' => 'tiny', 'not null' => FALSE,),
+      'manuale_service_cartaceo_inglese' => array('description' => t('manuale service cartaceo inglese'), 'type' => 'int', 'size' => 'tiny', 'not null' => FALSE,),
+      'manuale service cattaceo italiano' => array('description' => t('manuale service cattaceo italiano'), 'type' => 'int', 'size' => 'tiny', 'not null' => FALSE,),
+      'manuale_service_digitale_inglese' => array('description' => t('manuale service digitale inglese'), 'type' => 'int', 'size' => 'tiny', 'not null' => FALSE,),
+      'manuale_service_digitale_italiano' => array('description' => t('manuale service digitale italiano'), 'type' => 'int', 'size' => 'tiny', 'not null' => FALSE,),
+      'piano_manutenzioni' => array('description' => t('piano manutenzioni'), 'type' => 'int', 'size' => 'tiny', 'not null' => FALSE,),
+      'verbale_formazione' => array('description' => t('verbale formazione'), 'type' => 'int', 'size' => 'tiny', 'not null' => FALSE,),
+      'note_particolari' => array('description' => t('note particolari'), 'type' => 'blob', 'size' => 'big', 'not null' => FALSE,),
+      ),
+      'primary key' => array('ID'),
+      'indexes' => array(
+      'numero_ordine' => array('numero_ordine'),
+      ),
+      );
+      $schema['elenco_fornitori'] = array(
+      'description' => t('Elenco dei fornitori'),
+      'fields' => array(
+      'ID_Fornitore' => array('description' => t('ID Fornitore'), 'type' => 'serial', 'not null' => TRUE,),
+      'numero_fornitore_old' => array('description' => t('numero fornitore-old'), 'type' => 'int', 'not null' => FALSE,),
+      'Fornitore' => array('description' => t('Fornitore'), 'type' => 'char', 'length' => '255', 'not null' => FALSE,),
+      'Indirizzo' => array('description' => t('Indirizzo'), 'type' => 'char', 'length' => '255', 'not null' => FALSE,),
+      'CAP' => array('description' => t('codice postale'), 'type' => 'char', 'length' => '5', 'not null' => FALSE,),
+      'citta' => array('description' => t('città'), 'type' => 'char', 'length' => '255', 'not null' => FALSE,),
+      'Telefono_1' => array('description' => t('Primo telefono'), 'type' => 'char', 'length' => '255', 'not null' => FALSE,),
+      'Telefono_2' => array('description' => t('Secondo telefono '), 'type' => 'char', 'length' => '255', 'not null' => FALSE,),
+      'Telefax' => array('description' => t('Fax'), 'type' => 'char', 'length' => '255', 'not null' => FALSE,),
+      'email' => array('description' => t('email'), 'type' => 'char', 'length' => '255', 'not null' => FALSE,),
+      'note' => array('description' => t('note'), 'type' => 'char', 'length' => '255', 'not null' => FALSE,),
+      ),
+      'primary key' => array('ID_Fornitore'),
+      'indexes' => array(
+      'Fornitore' => array('Fornitore'),
+      'ID_Fornitore' => array('ID_Fornitore'),
+      'numero_fornitore_old' => array('numero_fornitore_old'),
+      ),
+      );
+     */
+
+    return $schema;
+}
+
+function maintenance_install() {
+    drupal_install_schema('maintenance');
+    
+}
+

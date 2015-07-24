@@ -1,0 +1,309 @@
+<?php
+
+// $Id$
+
+include_once("maintenance.php.inc");
+include_once(drupal_get_path('module', 'gratcore') . '/gratcore.php.inc');
+
+define(_TABLE_CANONE, 'canone');
+
+function maintenance_init() {
+    //   drupal_add_css(drupal_get_path('module', 'tested') . '/tested.css', 'module');
+    //    drupal_add_js(drupal_get_path('module', 'tested') . '/js/d3/d3.js','module');
+    //    drupal_add_js(drupal_get_path('module', 'tested') . '/js/tested.js','module');
+}
+
+function maintenance_help($path, $arg) {
+    $output = '';
+    switch ($path) {
+        case "admin/help#request":
+            return '<p>' . t("modulo per la gestione della manutenzione") . '</p>';
+        case "search/maintenance#noresults":
+            return "";
+    }
+    return $output;
+}
+
+/**
+ * Valid permissions for this module
+ * @return array An array of valid permissions for the onthisdate module
+ */
+function maintenance_perm() {
+    return tested_permission();
+}
+
+function maintenance_access($op, $node) {
+    global $user;
+
+
+    return FALSE;
+}
+
+function maintenance_cron() {
+    
+}
+
+/* -----------------------------node part ----------------------------------------- */
+
+function maintenance_node_info() {
+    return array(
+        'maintenance' => array(
+            'name' => t('Manutenzioni'),
+            'module' => 'maintenance',
+            'description' => t("Scheda canoni manutentivi"),
+            'has_title' => TRUE,
+            'title_label' => t('Manutenzioni'),
+            'has_body' => TRUE,
+            'body_label' => t('Info gestione manutenzione;'),
+        )
+    );
+}
+
+function maintenance_insert($node) {
+    global $user;
+    drupal_write_record('fees', $node);
+}
+
+function maintenance_update($node) {
+    global $user;
+    $node->revision = TRUE; // vincolante
+    maintenance_insert($node);
+}
+
+function maintenance_load($node) {
+
+    $additions = db_fetch_object(
+            db_query("SELECT * 
+                FROM {fees} 
+                WHERE  nid=%d ", $node->nid));
+
+    return $additions;
+}
+
+function maintenance_delete($node) {
+// delete all custom nodes  setting status.
+    db_query("DELETE FROM {fees} WHERE nid=%d ", $node->nid, $node->vid);
+}
+
+function maintenance_view($node, $teaser = FALSE, $page = FALSE) {
+    global $user;
+    /* caricare tutte le info di si3c e ascott */
+    return $node;
+}
+
+function maintenance_menu() {
+
+    /*
+      $items['tested/list'] = array(
+      'title' => 'Tutti i collaudi',
+      //'page callback' => 'drupal_get_form',
+      'page callback' => 'filtered_list',
+      //'page arguments' => array(2),
+      'access arguments' => array( _VIEW_RCQ ),
+
+      );
+
+      $items['admin/settings/tested'] = array(
+      'title' => 'Impostazione modulo collaudi',
+      'description' => 'configurazioni intestazioni a tabelle di interfacciamento e stringhe di connessione',
+      'page callback' => 'admin_settings',
+      'access arguments' => array(_MANGE_TESTED),
+      'file' => 'admin_settings.php.inc',
+      );
+      $items['tested'] = array(
+      'title' => 'Tutti i collaudi',
+      'page callback' => 'tested_list',
+      'access arguments' => array(_VIEW_TESTED),
+      );
+      $items['tested/import'] = array(
+      'title' => 'Importa/aggiorna collaudi',
+      //'page callback' => 'drupal_get_form',
+      'page callback' => 'load_tested',
+      //'page arguments' => array(2),
+      'access arguments' => array(_MANGE_TESTED),
+      'file' => 'import.php.inc',
+      );
+      $items['tested/risk/%'] = array(
+      'title' => 'Tabelle di rischio',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('risk_admin_form', 2),
+      'access arguments' => array(_VIEW_TESTED),
+      'type' => MENU_NORMAL_ITEM,
+      'file' => 'risk-analyzer.php',
+      );
+      $items['tested/ascott/%/%'] = array(
+      'title' => 'Mostra dati ordine',
+      //'page callback' => 'drupal_get_form',
+      'page callback' => 'ascott_order',
+      'page arguments' => array(2,3),
+      'access arguments' => array( _MANGE_TESTED ),
+      'file'=>'ascott_lnk.php.inc',
+      'type' => MENU_LOCAL_TASK,
+
+      );
+      $items['tested/si3c/%/%'] = array(
+      'title' => 'Mostra dati Si<sup>3</sup>C',
+      //'page callback' => 'drupal_get_form',
+      'page callback' => 'test_si3c',
+      'page arguments' => array(2, 3),
+      'access arguments' => array(_VIEW_TESTED),
+      'file' => 'si3c_lnk.php.inc',
+      'type' => MENU_CALLBACK,
+      );
+      $items['tested/manutenzione'] = array(
+      'title' => 'Mostra dati attività',
+      //'page callback' => 'drupal_get_form',
+      'page callback' => 'attivita_manutentiva',
+      'access arguments' => array(_MANGE_TESTED),
+      'file' => 'si3c_lnk.php.inc',
+      'type' => MENU_NORMAL_ITEM,
+      );
+
+      $items['tested/plug-in/%tested_plugin'] = array(
+      'title' => 'Mostra dati su altri sistemi',
+      'access arguments' => array( _VIEW_TESTED ),
+      'type' => MENU_LOCAL_TASK,
+      );
+
+      $items['tested/autocomplete/%'] = array(
+      'title' => 'ricerca automatica',
+      'page callback' => 'autocomplete_items',
+      'page arguments' => array(2),
+      'access arguments' => array(_MODIFY_TESTED),
+      'type' => MENU_LOCAL_TASK,
+      );
+      $items['tested/js/items'] = array(
+      'title' => 'Modifica voci di collaudo',
+      'page callback' => 'tested_load_items_js',
+      'access arguments' => array(_MODIFY_TESTED),
+      'type' => MENU_CALLBACK,
+      );
+     */
+    return $items;
+}
+
+/**
+ *  
+ * @param string $item_category tipo di elemento da ricercare
+ */
+function maintenance_theme() {
+    /*
+      $theme['admin_table_settings']['arguments']['form'] = NULL;
+      $theme['admin_table_settings']['file'] = 'admin_settings.php.inc';
+      // riferimento al template della scheda
+      $theme['tested_node_form']['arguments']['form'] = NULL;
+      $theme['tested_node_form']['template'] = 'tested_page';
+      $theme['tested_view']['arguments']['form'] = NULL;
+      $theme['tested_view']['template'] = 'tested_page';
+      //$theme['tested_node_form']['preprocess functions'] = array('tested_preprocess');
+      // riferimento al template lista attrezzature
+      $theme['tested_items']['arguments']['form'] = array();
+      $theme['tested_items']['template'] = 'tested_items';
+      //    $theme['tested_items']['preprocess functions'] = array('template_preprocess_tested_items');
+     */
+    return $theme;
+}
+
+/* hook di update della struttura*
+ *
+ */
+
+function maintenance_structure_move($id_source, $id_destination) {
+    /*
+      $qy = 'SELECT DISTINCT nid FROM ' . _REQUESTS_TABLE . ' WHERE struct=%d';
+      $res = db_query($qy, $id_source);
+      while ($rs = db_fetch_object($res)) {
+      $node = node_load($rs->nid);
+      $node->struct = $id_destination;
+      $src = get_structure($id_source);
+      $dst = get_structure($id_destination);
+      $node->log = 'Aggiornamento struttura da ' . $src[0] . ' a ' . $dst[0];
+      node_save($node);
+      }
+     */
+//    db_query(
+//       'UPDATE '._REQUESTS_TABLE.' SET struct=%d WHERE struct=%d',$id_destination,$id_source
+//    );
+}
+
+function maintenance_nodeapi(&$node, $op, $a3, $a4) {
+    global $user;
+    /* //if ($node->type!='gare') return;
+      switch ($node->type) {
+      case 'request':
+      add_request_tested_interface($node, $op, $a3, $a4);
+      break;
+      }
+     */
+}
+
+function maintenance_form(&$node) {
+    global $user;
+    $type = node_get_types('type', $node);
+    /* non serve viene copiato da sistema-apparecchiatura
+      $f['title']=array(
+      '#type'=>'textfield',
+      '#title'=>'collaudo',
+      '#default_value'=>$node->title,
+      );
+
+      $f['body']=array(
+      '#type'=>'textfield',
+      '#title'=>'descrizione',
+      '#default_value'=>$node->body
+      ); */
+    return $form;
+}
+
+function fee_edit_form($fee) {
+    $form['value'] = array(
+        '#title' => 'Prezzo di acquisto',
+        '#type' => 'textfield',
+        '#default_value' => isset($fee['vlaue']) ? $fee['vlaue'] : 0,
+    );
+    $form['fee'] = array(
+        '#title' => 'Canone',
+        '#type' => 'textfield',
+        '#default_value' => isset($fee['fee']) ? $fee['vlaue'] : 0,
+    );
+    // campo per il calcolo auutomatico della percentuale non registrato in db
+    $form['percentuale'] = array(
+        '#title' => 'percentuale del valore',
+        '#type' => 'textfield',
+        '#default_value' => (isset($fee['fee']) && $fee['fee'] <> 0 && isset($fee['value'])) ? $fee['vlaue'] / $fee['fee'] : 0,
+    );
+    if (user_access('_ADMIN_MAINTENANCE')) {
+        /*
+          TODO: edit dei campi di amministrazione
+          'class' => array('description' => 'CIVAB CLASS', 'type' => 'varchar', 'length' => '50', 'not null' => FALSE, ),
+          'idcnd' => array('description' => 'Codice CND', 'type' => 'varchar', 'length' => '50', 'not null' => TRUE, 'default' => 'XXXXXXXXXXXXXX'),
+          'fee_type' => array('description' => 'Tipo di canone', 'type' => 'int', 'not null' => FALSE, 'default' => 0),
+         * 
+         */
+    }
+}
+
+/**
+ * carica i dati extra da si3c e ASCOTT relativi al nodo passato e li inserisce nel nodo
+ * @param object  $node
+ */
+function load_extra_data($node) {
+    $node->ascott = get_ascott_data($node->ANNO, $node->NUMERO_INTROITO);
+    $node->si3c = get_si3c_data($node->APPA_CODI);
+    return $node;
+}
+
+/**
+ * recupera i dati da ascott tramite le funzioni del modulo tested
+ * @param int $ANNO
+ * @param int $NUMERO_INTROITO
+ */
+function get_ascott_data($ANNO, $NUMERO_INTROITO) {
+    include_once(drupal_get_path('module', 'tested') . '/ascott_lnk.php.inc');
+    return ascott_beni_order($ANNO, $NUMERO_INTROITO);
+}
+
+function get_si3c_data($APPA_CODI) {
+    include_once(drupal_get_path('module', 'tested') . '/si3c_lnk.php.inc');
+    return targa_macchina($APPA_CODI);
+}
