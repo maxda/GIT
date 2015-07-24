@@ -1,0 +1,146 @@
+<?php
+/* install or UPDATE functions for request modules
+*/
+
+function budget_uninstall() {
+
+	drupal_uninstall_schema('budget');
+	db_query("DELETE a FROM {node_revisions} as a, {node} as n WHERE n.type='budget' AND  n.nid=a.nid");
+//	db_query("DELETE a FROM ".query_status()." as a, {node} as n WHERE n.type='budget' AND  n.nid=a.nid");
+	db_query("DELETE a FROM {comments} as a, {node} as n WHERE n.type='budget' AND  n.nid=a.nid");// serve??
+
+	db_query("DELETE FROM {node} WHERE type='budget'");
+
+
+}
+
+function budget_install() {
+	drupal_install_schema('budget');
+
+}
+
+
+function budget_schema() {
+	include_once('budget_aux_function.php.inc');
+
+	$schema[_BUDGET_TABLE] = array(
+		'fields' => array(
+		'nid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'disp-width' => '10'),
+		'vid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'disp-width' => '10'),
+                'main_fid'=>array('description'=>'fondo principale','type'=>'int', 'unsigned' => TRUE, 'not null'=>TRUE, 'default'=>'0', 'initial'=>0),    
+		'value' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'disp-width' => '10'),
+		'value_vat' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'disp-width' => '10')),
+		'primary key' => array('nid','vid'),
+	);
+
+        // tabella delle rihchieste associate
+        $schema[_BONDED_REQUESTS] = array(
+	    'fields' => array(
+		 'rbid' => array('description' => 'req. bondend id','type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE,),
+		 'bnid' => array('description' => 'budget associated nid','type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'),
+		 'nid' => array('description' => 'Nid associato','type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'),
+                 'vid' => array('description' => 'vid associato','type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'),
+                 'created' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'disp-width' => '10'),
+		 'uid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10')),
+	    'primary key' => array('rbid'),
+            'indexes' => array(
+                'idx1'=>array('rbid'),
+                'idx2'=>array('bnid'),
+                'idxnv'=>array('nid','vid'),
+                'idxv'=>array('nid')
+            ),
+	);
+        // tabella dei fondi disponibili id principale "fid"
+        $schema[_FOUNDS] = array(
+	    'fields' => array(
+		 'fid' => array('description' => 'Id found','type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE,),
+                 'bnid' => array('description' => 'budget id associated','type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'),
+		 'value' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'disp-width' => '10'),
+                 'description' => array('type' => 'varchar', 'length' => '253', 'not null' => FALSE, 'default' => ''),
+                 'type' => array('description' => 'tipo difinanziamento','type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+ 		 'created' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'disp-width' => '10'),
+		 'uid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10')),
+	    'primary key' => array('fid'),
+            'indexes' => array(
+                'idx1'=>array('bnid')
+            ),
+	);
+        // fondi disponibili per le richieste
+        $schema[_FOUNDS_BINDINGS] = array(
+	    'fields' => array(
+		 'aid' => array('description' => 'id associazone','type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE,), 
+                 'fid' => array('description' => 'Id fondo associato','type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'disp-width' => '10'),
+		 'rbid' => array('description' => 'Id richiesta associata al fondo','type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'disp-width' => '10'),
+ 		 'created' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'disp-width' => '10'),
+		 'uid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10')),
+	    'primary key' => array('aid'),
+            'indexes' => array(
+                'idx1'=>array('fid','rbid'),
+                'idx2'=>array('rbid'),
+                'idx3'=>array('fid'),
+            ),
+	);
+
+
+	return $schema;
+}
+
+function  budget_update_6001(&$sandbox){
+    if (!isset($sandbox['count'])){
+        $table=budget_schema();
+        db_add_field($ret, _BUDGET_TABLE, 'main_fid',array('type'=>'int', 'unsigned' => TRUE, 'not null'=>TRUE, 'default'=>'0', 'initial'=>0));
+        db_create_table($ret, _BONDED_REQUESTS,$table[_BONDED_REQUESTS] );
+        db_create_table($ret, _FOUNDS,$table[_FOUNDS] );
+        db_create_table($ret, _FOUNDS_BINDINGS,$table[_FOUNDS_BINDINGS] );
+        
+        $qy="SELECT nid, vid, uid, title, created FROM {node} WHERE type='budget'";
+        $res=db_query($qy);
+        while ($row=  db_fetch_array($res)){
+            $sandbox['nodes'][]=$row;
+        }
+        $sandbox['count']=0;
+        $sandbox['max']=  count($sandbox['nodes']);
+    }
+    
+    
+
+    //trasferimento delle aggregazioni
+   
+   if ($row= array_pop($sandbox['nodes'])){
+        $founds=0;
+        $res=db_query("INSERT INTO {"._FOUNDS."} (bnid, value, description, type, created, uid)
+                         VALUES (".$row['nid'].", ".$founds.", 'Finanziamento regionale per ".$row['title']."', 1, ".$row['created'].", ".$row['uid'].") ");
+        $fid=db_last_insert_id(_FOUNDS, 'fid');
+        $ret[]=array('success'=> $res!==FALSE , 'query'=>'Creazione fondo n.'.$fid);
+        $qy="SELECT * FROM {"._AGGREGATOR_TABLE."} WHERE nid=".$row['nid'];
+        $rs=db_query($qy);
+        while ($rw=db_fetch_object($rs)){
+            //trasferimento dalla tabella aggregazioni
+            $res=db_query("INSERT INTO {"._BONDED_REQUESTS."} (bnid, nid, vid, created, uid)
+                             VALUES (".$row['nid'].", ".$rw->nid2.", ".$rw->vid2.", ".$rw->created.", ".$rw->uid.") ");
+            $ret[]=array('success'=> $res!==FALSE , 'query'=>'Trasferita associazione a richiesta n.'.$rw->nid2);
+            $rbid=db_last_insert_id(_BONDED_REQUESTS, 'rbid');
+            $res=db_query("DELETE FROM {"._AGGREGATOR_TABLE."} WHERE nid=".$row['nid']." AND nid2=".$rw->nid2." AND vid2=".$rw->vid2);
+            $ret[]=array('success'=> $res!==FALSE , 'query'=>'Rimossa vecchia associazione a richiesta n.'.$rw->nid2);
+            //calcolo dei fondi
+            $founds+=db_result(db_query("SELECT (value * IF(value_vat=0,"._WITH_IVA.",1)) as found
+                                        FROM {"._REQUESTS_TABLE."} WHERE nid=".$rw->nid2." AND vid=".$rw->vid2));
+            // inserimento dell'asociazione richiesta fondo
+            $res=db_query("INSERT INTO {"._FOUNDS_BINDINGS."} (fid,rbid, created, uid)
+                             VALUES (".$fid.", ".$rbid.", ".$rw->created.", ".$rw->uid.") ");
+            $ret[]=array('success'=> $res!==FALSE , 'query'=>'Richesta n.'.$rw->nid2.' associata a fondo n.'.$fid);
+        }
+        // aggiornamento del valore del fondo
+        $res=db_query("UPDATE {"._FOUNDS."} SET value=".$founds." WHERE fid=".$fid);
+        $ret[]=array('success'=> $res!==FALSE , 'query'=>'Valorizzazione fondo n.'.$fid.' a valore '.$founds);
+        $res=db_query("UPDATE {"._BUDGET_TABLE."} SET main_fid=".$fid.", value=".$founds." WHERE nid=".$row['nid']." AND vid=".$row['vid']);
+        $ret[]=array('success'=> $res!==FALSE , 'query'=>'Valorizzazione piano principale n.'.$row['nid'].' a valore '.$founds);
+        $sandbox['count']++;
+    }
+    else {
+        $ret[]=array('success'=> FALSE , 'query'=>'Strange error retreiving nodes');
+        $ret['#finished']=1;
+    }
+    $ret['#finished']=$sandbox['count']/$sandbox['max'];
+    return $ret;
+}

@@ -1,0 +1,1451 @@
+<?php
+// $Id$
+
+include_once("budget_aux_function.php.inc");
+include_once(drupal_get_path('module','gratcore').'/gratcore.php.inc'); //funzioni di aggregazione
+include_once(drupal_get_path('module','request').'/request.php.inc');
+
+
+/**
+ *
+ Modulo per la gestione delle gare.
+ Si basa sulla pianificazione preventiva di aggregati di richieste per mezzo del CND
+
+ */
+
+
+
+
+function budget_help($path, $arg) {
+    $output = '';
+    switch ($path) {
+        case "admin/help#budget":
+            $output = '<p>'.  t("modulo la gestione dei budget") .'</p>';
+            break;
+    }
+    return $output;
+} // function
+
+
+/**
+ * Valid permissions for this module
+ * @return array An array of valid permissions for the  module
+ */
+
+function budget_perm() {
+    return budget_permission();
+}
+
+function budget_access($op, $node) {
+
+/* TODO: all*/
+    global $user;
+
+
+
+    $auth=TRUE;
+
+    switch ($op) {
+        case 'update':
+            $auth=user_access(_MODIFY);
+            break;
+        case 'create':
+            $auth=user_access(_MODIFY_REQUEST)&& user_access(_MODIFY);
+            break;
+        case 'delete':
+            $auth = (user_access(_DELETE_BUDGET) ) ;
+            break;
+        case 'view'  :
+            $auth = user_access(_ONLY_VIEW);
+            break;
+        default:
+            return FALSE;
+    }
+/**/
+    return $auth;;
+
+}
+
+
+
+
+
+/*-----------------------------node part -----------------------------------------*/
+/**
+ * modifica i contenuti di altri moduli, in particolare delle richieste
+ * @param <type> $node
+ * @param <type> $op
+ * @param <type> $teaser
+ */
+function budget_nodeapi(&$node, $op, $a3,$a4) {
+    switch ($node->type) {
+        case 'budget':
+            switch($op) {
+                case 'insert':
+                case 'update':
+                    break;
+            }
+            break;
+        case 'request':
+            add_request_budget_interface($node,$op,$a3,$a4);
+            break;
+    }
+}
+
+function budget_node_info() {
+    return array(
+    'budget' => array(
+    'name' => t('Budget'),
+    'module' => 'budget',
+    'description' => t("Scheda di gestione dei budget"),
+    'has_title' => TRUE,
+    'title_label' => t('Budget'),
+    'has_body' => TRUE,
+    'body_label' => t('Info gestione budget;'),
+    )
+    );
+}
+
+
+
+
+function budget_form(&$node) {
+    global $user;
+    $type = node_get_types('type', $node);
+
+    $w=0;
+
+    $form['title']=array(
+        '#type'=>'textfield',
+        '#default_value'=>(!$node->title?'Budget '.date('Y'):$node->title),
+        '#required'=>TRUE,
+        '#title'=>'Titolo budget',
+        '#access' => user_access(_MODIFY),
+        '#weight'=>$w++,
+    );
+    $form['values']=array(
+        '#type'=>'fieldset',
+        '#weight'=>$w++,
+/*		'#prefix' => '<div class="container-inline">',
+		'#suffix' => '</div>',*/
+    );
+
+    $form['vv']['value_field']=array(
+        '#type'=>'fieldset',
+        '#collapsible'=> FALSE,
+        '#weight' =>$w++,
+        '#access' => (user_access(_MODIFY)),
+        '#prefix' => '<div class="container-inline">',
+        '#suffix' => '</div>',
+        '#description'=>'Spesa approvata comprensiva di margini per imprevisti<br>',
+
+    );
+    $form['vv']['value_field']['value']=array(
+        '#type'=>'textfield',
+        '#default_value'=>($node->value?$node->value:0),
+        '#required'=>TRUE,
+        '#title'=>'Spesa approvata (&euro;)',
+        '#weight'=>1,
+        '#prefix' => '<div class="container-inline">',
+        '#suffix' => '</div>',
+        '#size'=> 20,
+    );
+
+    $form['vv']['value_field']['value_vat'] = array(
+        '#type' => 'select',
+        '#title' => t(''),
+        '#default_value'=> (isset($node->value_vat)?$node->value_vat:20), // default 'con sistema informativo aziendale'
+        '#options' => get_iva(),
+        '#weight' => 2,
+    );
+
+    $res=summary_counts($node->nid);
+    $form['vv']['cost']=array(
+        '#type'=>'item',
+        '#title'=>'Totale gi&agrave; speso ',
+        '#value'=>currencyFormat($node->cost),
+        '#description'=>' iva inclusa',
+        '#weight'=>$w++,
+        '#prefix' => '<div class="container-inline">',
+        '#suffix' => '</div>',
+    );
+    $form['vv']['approved']=array(
+        '#type'=>'item',
+        '#title'=>'Totale richieste approvate ',
+        '#value'=>currencyFormat($node->approved),
+        '#description'=>' iva inclusa',
+        '#weight'=>$w++,
+        '#prefix' => '<div class="container-inline">',
+        '#suffix' => '</div>',
+    );
+    $form['vv']['planned']=array(
+        '#type'=>'item',
+        '#title'=>'Totale richieste attuali',
+        '#value'=>currencyFormat($node->planned),
+        '#description'=>' iva inclusa',
+        '#weight'=>$w++,
+        '#prefix' => '<div class="container-inline">',
+        '#suffix' => '</div>',
+    );
+    $form['body']=array(
+        '#type'=>'textarea',
+        '#default_value'=>$node->body,
+        '#description'=>'descrizione budget',
+        '#required'=>FALSE,
+        '#title'=>'Descrizione',
+        '#weight'=>$w++,
+        '#rows'=>3,
+    );
+
+
+    //	$form['requests']['list']=array('#value'=>associated_requests($node));
+
+    return $form;
+}
+
+
+
+
+function budget_insert($node) {
+/* new implementation*/
+    drupal_write_record(_BUDGET_TABLE,$node);
+/*
+    db_query("INSERT INTO "._BUDGET_TABLE." (nid,vid,value,value_vat,pNid) VALUES (%d,%d,%d,%d,0)",
+        $node->nid,$node->vid,$node->value,$node->value_vat);
+//	set_status($node->nid,_OPEN);
+ * 
+ */
+/* TODO:
+	implementare i "figli"
+	debug
+
+*/
+
+}
+
+function budget_update($node) {
+    if ($node->revision) budget_insert($node) ;
+    else {
+/* new implementation*/
+        drupal_write_record(_BUDGET_TABLE,$node, array('nid','vid'));
+ 
+/*
+
+        db_query("UPDATE "._BUDGET_TABLE."
+		   SET value=%d, value_vat=%d
+		   WHERE nid=%d and vid=%d",
+            $node->value, $node->value_vat, $node->nid,  $node->vid
+        );
+  * 
+ */  
+        
+    }
+ 
+/* TODO:
+	debug
+*/
+}
+
+/**
+ * restituisce i totali per un determinato budget.
+ * I totali sono tutti calcolati iva inclusa in base all'aliquota della richiesta.
+ * I totali sono 3:
+ * <ul><li> totale approvato (approved)</li>
+ *     <li> totale previsto o preventivato (plannd)</li>
+ *     <li> totale speso (cost)</li>
+ * </ul>
+ * Viene in oltre calcolata la variazione in + o in - rispetto all'approvato.
+ *
+ * @param <node id> $nid, id di riferimento del budget
+ * @return <dbobj> totali
+ */
+
+function summary_counts($nid) {
+    $qy="SELECT SUM(ra.value * IF(ra.value_vat=0,"._WITH_IVA.",1)) as approved,
+                SUM(rp.value * IF(rp.value_vat=0,"._WITH_IVA.",1)) as total_planned,
+                SUM(IF(rp.rcq_status >= "._CLOSED.",0,rp.value * IF(rp.value_vat=0,"._WITH_IVA.",1))) as planned,
+                SUM(IF(rp.rcq_status <"._CLOSED.",0,rp.cost * IF(rp.cost_vat=0,"._WITH_IVA.",1))) as cost,
+			    SUM(CAST(ra.value *  IF(ra.value_vat=0,"._WITH_IVA.",1) AS SIGNED) -
+		    CAST(IF(rp.rcq_status >= "._CLOSED.",rp.cost *  IF(rp.cost_vat=0,"._WITH_IVA.",1),
+										rp.value *  IF(rp.value_vat=0,"._WITH_IVA.",1)
+					) AS SIGNED
+                        )
+                    ) AS variation,
+                SUM(IF(rp.rcq_status = "._APPROVED.",1,0)) AS approved_status,
+                SUM(IF(rp.rcq_status = "._TEC_DOC.",1,0)) AS doc_ok_status,
+                SUM(IF(rp.rcq_status = "._PUBLISHED.",1,0)) AS published_status,
+                SUM(IF(rp.rcq_status = "._CLOSED." OR rp.rcq_status = "._MOVED.",1,0)) AS close_status,
+                SUM(IF(rp.rcq_status = "._TESTED.",1,0)) AS tested_status,
+                SUM(IF(rp.rcq_status = "._APPROVED.",ra.value *  IF(ra.value_vat=0,"._WITH_IVA.",1),0)) AS approved_value,
+                SUM(IF(rp.rcq_status = "._TEC_DOC.",ra.value *  IF(ra.value_vat=0,"._WITH_IVA.",1),0)) AS doc_ok_value,
+                SUM(IF(rp.rcq_status = "._PUBLISHED.",ra.value *  IF(ra.value_vat=0,"._WITH_IVA.",1),0)) AS published_value,
+                SUM(IF(rp.rcq_status = "._CLOSED." ,rp.cost *  IF(rp.cost_vat=0,"._WITH_IVA.",1),0)) AS close_value,
+                SUM(IF(rp.rcq_status = "._MOVED." ,ra.value *  IF(ra.value_vat=0,"._WITH_IVA.",1),0)) AS moved_value,
+                SUM(IF(rp.rcq_status = "._CLOSED." ,CAST(ra.value *  IF(ra.value_vat=0,"._WITH_IVA.",1) AS SIGNED) -
+                                               CAST(rp.cost *  IF(rp.cost_vat=0,"._WITH_IVA.",1) AS SIGNED),0)) AS saved_value,
+                SUM(IF(rp.rcq_status = "._TESTED." ,rp.cost *  IF(rp.cost_vat=0,"._WITH_IVA.",1),0)) AS tested_value,
+                COUNT(*) AS count
+		 FROM "._BONDED_REQUESTS." bl
+			 INNER JOIN {node} n ON n.nid=bl.nid
+			 INNER JOIN "._REQUESTS_TABLE." rp ON rp.nid=n.nid AND rp.vid=n.vid
+			 INNER JOIN "._REQUESTS_TABLE." ra ON ra.nid=bl.nid AND ra.vid=bl.vid
+                  WHERE bl.bnid = ".$nid ;
+    return db_fetch_object(db_query($qy));
+}
+
+/**
+ * hook per il caricamento delle aggiunte al nodo di budget
+ * @param <node object> $node
+ * @return <stdobj> aggiunte al nodo di budget.
+ */
+function budget_load($node) {
+    $qy=db_query("SELECT value, value_vat FROM "._BUDGET_TABLE." WHERE vid=%d AND nid=%d " , $node->vid,$node->nid);
+    if($add=db_fetch_object($qy)) {
+        $additions->value=$add->value;
+        $additions->value_vat=$add->value_vat;
+    }
+
+    if ($res=summary_counts($node->nid)) {
+        $additions->approved=$res->approved;
+        $additions->total_planned=$res->total_planned;
+        $additions->planned=$res->planned;
+        $additions->cost=$res->cost;
+        $additions->variation=$res->variation;
+        $additions->approved_status=$res->approved_status;
+        $additions->doc_ok_status=$res->doc_ok_status;
+        $additions->published_status=$res->published_status;
+        $additions->close_status=$res->close_status;
+        $additions->tested_status=$res->tested_status;
+        $additions->count=$res->count;
+        $additions->approved_value=$res->approved_value;
+        $additions->doc_ok_value=$res->doc_ok_value;
+        $additions->published_value=$res->published_value;
+        $additions->close_value=$res->close_value;
+        $additions->moved_value=$res->moved_value + $res->saved_value;
+    }   $additions->tested_value=$res->tested_value;
+
+  return $additions;
+}
+
+
+
+
+function budget_view($node, $teaser = FALSE, $page = FALSE) {
+    $w=0;
+    $node->content['body'] =array(
+        '#weight'=>$w,
+        '#value' =>
+        '<span class="description">Budget:</span><b>'.$node->title.'</b><br>
+			<span class="description">Spesa limite concessa:</span><b>'.currencyFormat($node->value,$node->value_vat).'</b> |
+			<span class="description">Spesa corrente:</span><b>'.currencyFormat($node->cost).'</b> (iva inclusa)<br>
+			<table style="outline-style: solid;
+						  outline-color: '.($node->variation>0?'green':'red').';
+						  max-width: 65%">
+			<tr><td class="description">Totale approvato:</td><td style="text-align: right;"><b>'.currencyFormat($node->approved).'</b></td><td> <big><b>-</b></big></td></tr>
+			<tr><td class="description">Totale gi&agrave; speso:</td><td style="text-align: right;"><b>'.currencyFormat($node->cost).'</b></td><td> <big><b>-</b></big></td></tr>
+			<tr><td class="description">Totale spesa rimanente:</td><td style="text-align: right;
+																		  border-bottom-style: solid;
+																		  border-bottom-width: thin"><b>'.currencyFormat($node->planned).'</b></td><td> <big><b>=</b></big></td></tr>
+			<tr><td class="description" style="color: '.($node->variation>0?'green':'red').';">'.($node->variation>0?'Attivo attualmente previsto':'<b>Disavanzo attualmente previsto</b>').':</td>
+				<td style="text-align: right;color: '.($node->variation>0?'green':'red').';">'.currencyFormat($node->variation).'</b>  </td><td>(iva inclusa)</td></tr>
+ 			<tr><td>Percentuale avanzamento acquisti:<p class="description">
+ 					Speso rispetto all\'approvato &plusmn; i risparmi </p></td>
+                            <td style="text-align: right;"><b>'.round($node->cost/($node->approved-$node->variation)*100).'%</b></td>
+                        <td/></tr></table>
+                        <span class="description">Descrizione:</span><b>'.$node->body.'</b> <br>',
+    );
+    $w++;
+    $approved=round($node->approved_status/$node->count*100);
+    $doc_ok=round($node->doc_ok_status/$node->count*100);
+    $published=round($node->published_status/$node->count*100);
+    $close=round($node->close_status/$node->count*100);
+    $tested=round($node->tested_status/$node->count*100);
+    $approved_v=round($node->approved_value/$node->approved*100);
+    $doc_ok_v=round($node->doc_ok_value/$node->approved*100);
+    $published_v=round($node->published_value/$node->approved*100);
+    $close_v=round($node->close_value/$node->approved*100);
+    $moved_v=round($node->moved_value/$node->approved*100);
+    $tested_v=round($node->tested_value/$node->approved*100);
+    $app_c='d46c6c';
+    $doc_c='d4936c';
+    $pub_c='d2d46c';
+    $clo_c='77d46c';
+    $mov_c='c1c2d0';
+    $tes_c='6c83d4';
+    
+//TEST:jqplot begin test
+        $data['plots']['bar']['data'][]=array(
+                              (int) $approved,(int) $approved_v );
+        $data['plots']['bar']['data'][]=array(
+                              (int) $doc_ok,(int) $doc_ok_v,);
+        $data['plots']['bar']['data'][]=array(
+                              (int) $published,(int) $published_v,);
+        $data['plots']['bar']['data'][]=array(
+                              (int) $close,(int) $close_v,);
+        $data['plots']['bar']['data'][]=array(
+                              (int) $tested,(int) $tested_v,);
+        $data['plots']['bar']['data'][]=array(
+                              0,(int) $moved_v,);
+        $data['plots']['bar']['settings']=array(
+            'title'=>'Totali',
+            'stackSeries'=>true,
+            'seriesColors'=> array('#d46c6c','#d4936c','#d2d46c','#77d46c','#6c83d4','#c1c2d0'),
+            'axes'=>array(
+                'xaxis' =>array(               
+                    'renderer'=> '$jq.jqplot.CategoryAxisRenderer',
+                    'ticks'=>array('quantit&agrave;', 'valori')
+                 ),
+            ),
+            'series'=>array(
+                array('label'=>'Approvate da evadere'),
+                array('label'=>'Documentazione tecnica completa'),
+                array('label'=>'Documentazione di gara pubblicata'),
+                array('label'=>'Richeste evase'),
+                array('label'=>'Collaudi'),
+                array('label'=>'Rinuncie e risparmi'),
+            ),
+            'seriesDefaults'=>array( 
+                'renderer'=> '$jq.jqplot.BarRenderer', // ciambella 
+                'showDataLabels'=>true,
+            ), 
+       //     'legend'=>array( 'show'=>false, 'location'=> 'e','placement'=> 'outsideGrid' )
+        );
+        $data['plots']['pie']['data'][]=array(
+                              array('Approvate da evadere',(int) $node->approved_status),
+                              array('Documentazione tecnica completa',(int) $node->doc_ok_status),
+                              array('Documentazione di gara pubblicata' ,(int) $node->published_status),
+                              array('Richeste evase' ,(int) $node->close_status),
+                              array('Collaudi' ,(int) $node->tested_status),
+                              array('Rinuncie e risparmi' , 0),
+                        );
+        $data['plots']['pie']['data'][]=array(
+                              array('Approvate da evadere' ,(int) $node->approved_value),
+                              array('Documentazione tecnica completa' ,(int) $node->doc_ok_value),
+                              array('Documentazione di gara pubblicata' ,(int) $node->published_value),
+                              array('Richeste evase' ,(int) $node->close_value),
+                              array('Colaudi' ,(int) $node->tested_value),
+                              array('Rinuncie e risparmi' ,(int) $node->moved_value),
+                              
+                        );
+        $data['plots']['pie']['settings']=array(
+            'title'=>'Grafico quantitativo e economico',
+            'seriesColors'=> array('#d46c6c','#d4936c','#d2d46c','#77d46c','#6c83d4','#c1c2d0'),
+            'seriesDefaults'=>array( 
+           
+          // Make this a pie chart.
+            'renderer'=> '$jq.jqplot.DonutRenderer', // ciambella 
+            'rendererOptions'=>array(
+                'sliceMargin'=> 3,
+                'dataLabels' => 'percent',
+                // Put data labels on the pie slices.
+                // By default, labels show the percentage of the slice.
+                'showDataLabels'=> true,
+                'startAngle'=> 0,
+                
+                ),
+                
+            ), 
+            'legend'=>array( 'show'=>true, 'location'=> 'e' )
+        );
+        drupal_add_js($data,'setting');
+        
+        $graph='<div id="bar" style="height:300px;width:450px; float:left;"></div>
+            <div id="pie" style="height:300px;width:450px; float:left;"></div><br style="clear:both;" />';
+//TEST: jqplot end test                    
+        
+/* BEGIN REMOVE Google GRAPH    
+ *     
+  if (module_exists('chart')){
+        $chart = array(
+                      '#chart_id' => 'qt1',
+                      '#title' => chart_title('Grafico quantitativo', '0000ee', 12),
+                      '#type' => CHART_TYPE_PIE,
+                      '#size' => chart_size(300, 120),
+                );
+        $chart['#data']=array(
+                              'Approvate da evadere' => $node->approved_status,
+                              'Documentazione tecnica completa' => $node->doc_ok_status,
+                              'Documentazione di gara pubblicata' => $node->published_status,
+                              'Richeste evase' => $node->close_status,
+                              'Collaudi' => $node->tested_status
+                        );
+        $chart['#labels']=array(
+                              $node->approved_status,
+                              $node->doc_ok_status,
+                              $node->published_status,
+                              $node->close_status,
+                              $node->tested_status,
+                        );
+        $chart['#data_colors']=array($app_c,$doc_c,$pub_c,$clo_c); 
+        $graph.='<table><tr><td>'.chart_render($chart).'</td>';
+
+        $chart = array(
+                      '#chart_id' => 'qt2',
+                      '#title' => chart_title('Grafico economico', '0000ee', 12),
+                      '#type' => CHART_TYPE_PIE,
+                      '#size' => chart_size(300, 150),
+                );
+        $chart['#data']=array(
+                              'Approvate da evadere' => $approved_v,
+                              'Documentazione tecnica completa' => $doc_ok_v,
+                              'Documentazione di gara pubblicata' => $published_v,
+                              'Richeste evase' => $close_v,
+                              'Rinuncie e risparmi' => $moved_v,
+                              'Colaudi' => $tested_v,
+                        );
+//        $chart['#labels']=array(
+//                              $node->approved_value,
+//                              $node->doc_ok_value,
+//                              $node->published_value,
+//                              $node->close_value,
+//                              $node->moved_value,
+//                        );
+        $chart['#legends']=array(
+                              'Approvate da evadere' ,
+                              'Documentazione tecnica completa',
+                              'Documentazione di gara pubblicata',
+                              'Richeste evase',
+                              'Rinuncie e risparmi',
+                              'Collaudi'
+                        );
+        $chart['#data_colors']=array($app_c,$doc_c,$pub_c,$clo_c,$mov_c,$tes_c);
+        
+        $graph.='<td>'.chart_render($chart).'</td>';
+
+       $chart = array(
+		      '#chart_id' => 'qt3',
+		      '#title' => chart_title(t('Confronto'), '0000ee', 15),
+		      '#type' => CHART_TYPE_BAR_V_GROUPED,
+		      '#size' => chart_size(200, 150),
+		      '#grid_lines' => chart_grid_lines(30, 15),
+		      '#bar_size' => chart_bar_size(30, 6),
+		    );
+
+		  $chart['#data'] = array(
+                               array(($node->approved_status+$node->doc_ok_status+$node->published_status + $node->close_status)/$node->count*100),
+                               array(($node->doc_ok_status+$node->published_status + $node->close_status)/$node->count*100),
+                               array(($node->published_status + $node->close_status)/$node->count*100),
+                               array($node->close_status/$node->count*100),
+                               array($node->tested_status/$node->count*100));
+
+
+		  $chart['#data_colors'] = array($app_c,$doc_c,$pub_c,$clo_c,$tes_c);
+		  $graph.='<td>'.chart_render($chart).'</td></tr></table>';
+                  
+        $app_c=$doc_c=$pub_c=$clo_c=$mov_c=$tes_c='';
+    }
+    else {
+        $graph='<table>
+                <tr><th colspan="3">Grafico quantitativo</th></tr>
+                <tr><td style="min-width:1px;width:'.$approved.'%; background:#'.$app_c.';"></td>
+                <td style="min-width:1px;width:'.$doc_ok.'%; background:#'.$doc_c.';"></td>
+                <td style="min-width:1px;width:'.$published.'%; background:#'.$pub_c.';"></td>
+                <td style="min-width:1px;width:'.$close.'%; background:#'.$clo_c.';"></td>
+                </tr>
+                </table><table><tr><th colspan="3">Grafico economico</th></tr>
+                <tr><td style="min-width:1px;width:'.$approved_v.'%; background:#'.$app_c.';"></td>
+                <td style="min-width:1px;width:'.$doc_ok_v.'%; background:#'.$doc_c.';"></td>
+                <td style="min-width:1px;width:'.$published_v.'%; background:#'.$pub_c.';"></td>
+                <td style="min-width:1px;width:'.$close_v.'%; background:#'.$clo_c.';"></td>
+                <td style="min-width:1px;width:'.$moved_v.'%; background:#'.$mov_c.';"></td>
+                <td style="min-width:1px;width:'.$tested_v.'%; background:#'.$tes_c.';"></td>
+                </tr>
+                </table>';
+    $app_c='<span style="color:#'.$app_c.';background:#'.$app_c.';">_</span> ';
+    $doc_c='<span style="color:#'.$doc_c.';background:#'.$doc_c.';">_</span> ';
+    $pub_c='<span style="color:#'.$pub_c.';background:#'.$pub_c.';">_</span> ';
+    $clo_c='<span style="color:#'.$clo_c.';background:#'.$clo_c.';">_</span> ';
+    $mov_c='<span style="color:#'.$mov_c.';background:#'.$mov_c.';">_</span> ';
+    $tes_c='<span style="color:#'.$tes_c.';background:#'.$tes_c.';">_</span> ';
+
+    }
+END grafico su google chart*/
+     $app_c='<span style="color:'.$app_c.';background:'.$app_c.';">_</span> ';
+    $doc_c='<span style="color:'.$doc_c.';background:'.$doc_c.';">_</span> ';
+    $pub_c='<span style="color:'.$pub_c.';background:'.$pub_c.';">_</span> ';
+    $clo_c='<span style="color:'.$clo_c.';background:'.$clo_c.';">_</span> ';
+    $mov_c='<span style="color:'.$mov_c.';background:'.$mov_c.';">_</span> ';
+    $tes_c='<span style="color:'.$tes_c.';background:'.$tes_c.';">_</span> ';
+   
+     $node->content['body']['done']=array(
+        '#type'=>'fieldset',
+        '#title' => 'Avanzamenti',
+        '#collapsible'=> FALSE,
+        '#collapsed'=> TRUE,
+        '#weight'=>$w,
+        '#value'=> '<table>
+                    <tr><th>Stato richieste</th><th style="text-align:right;">conteggio</th><th style="text-align:right;">percentuale</th>
+                                    <th style="text-align:right;">Valore economico</th><th style="text-align:right;">Percentuale economica</th></tr>
+                    <tr><td>'.$app_c.'Approvate da evadere</td><td style="text-align:right;">'.$node->approved_status.'</td><td style="text-align:right;">'.$approved.'%</td>
+                        <td style="text-align:right;">'.currencyFormat($node->approved_value).'</td><td style="text-align:right;">'.$approved_v.'%</td></tr>
+                    <tr><td>'.$doc_c.'Documentazione tecnica completa</td><td style="text-align:right;">'.$node->doc_ok_status.'</td><td style="text-align:right;">'.$doc_ok.'%</td>
+                        <td style="text-align:right;">'.currencyFormat($node->doc_ok_value).'</td><td style="text-align:right;">'.$doc_ok_v.'%</td></tr>
+                    <tr><td>'.$pub_c.'Documentazione di gara pubblicata</td><td style="text-align:right;">'.$node->published_status.'</td><td style="text-align:right;">'.$published.'%</td>
+                        <td style="text-align:right;">'.currencyFormat($node->published_value).'</td><td style="text-align:right;">'.$published_v.'%</td></tr>
+                    <tr><td>'.$clo_c.'Richeste evase (acquistate)</td><td style="text-align:right;">'.$node->close_status.'</td><td style="text-align:right;">'.$close.'%</td>
+                        <td style="text-align:right;">'.currencyFormat($node->close_value).'</td><td style="text-align:right;">'.$close_v.'%</td></tr>
+                    <tr><td>'.$tes_c.'</span> Collaudi</td><td style="text-align:right;">'.$node->tested_status.'</td><td style="text-align:right;">'.$tested.'</td>
+                        <td style="text-align:right;">'.currencyFormat($node->tested_value).'</td><td style="text-align:right;">'.$tested_v.'%</td></tr>
+                    <tr><td>'.$mov_c.'</span> Rinuncie e risparmi</td><td style="text-align:right;">-</td><td style="text-align:right;">-</td>
+                        <td style="text-align:right;">'.currencyFormat($node->moved_value).'</td><td style="text-align:right;">'.$moved_v.'%</td></tr>
+                   <tr><td><b>Totale approvato</b></td><td style="text-align:right;"> </td><td style="text-align:right;"> </td>
+                        <td style="text-align:right;">'.currencyFormat($node->approved).'</td><td style="text-align:right;">'.round($node->approved/$node->approved*100).'%</td></tr>
+                    <tr><td><b>Totale gestito attualmente</b></td><td style="text-align:right;">'.$node->count.'</td><td style="text-align:right;">'.round($node->count/$node->count*100).'%</td>
+                        <td style="text-align:right;">'.currencyFormat($node->total_planned).'</td><td style="text-align:right;">'.round($node->total_planned/$node->approved*100).'%</td></tr>
+
+                    </table>'.$graph
+    );
+    $w++;
+    $node->content['body']['list_rq']=array(
+        '#type'=>'fieldset',
+        '#title' => 'Lista delle richieste approvate',
+        '#collapsible'=> TRUE,
+        '#collapsed'=> FALSE,
+        '#weight'=>$w,
+    );
+    $w++;
+    $node->content['body']['list_rq']['data']=array(
+        '#weight'=>$w,
+        '#value'=>drupal_get_form('budget_plan',$node));
+
+
+/* TODO:
+	caricare i figli
+	debug
+
+
+*/
+    return $node;
+}
+
+function budget_plan (&$form_state,$node) {
+    global $user;
+    
+    if(is_array($user->struct))
+        $struct=implode(',',$user->struct);
+    else
+        $struct=$user->struct;
+
+    $filter='bl.bnid = '.$node->nid;
+    //seleziona solo le strutture a cui l'utente ha accesso
+    if (user_access(_ONLY_VIEW) && !(
+        user_access(_MODIFY) || user_access(_MODIFY_REQUEST) || user_access(_DELETE_BUDGET)))
+        $filter.= ' AND (st.parent IN ('.$struct.') OR st.id IN ('.$struct.'))';
+    if (isset($form_state['values']['struct']) && $form_state['values']['struct']<>0)  $filter.= ' AND st.id='.$form_state['values']['struct'];
+    if (isset($form_state['values']['view_mode']))
+        $view_mode=$form_state['values']['view_mode'];
+    else
+        $view_mode=(isset($_SESSION['VIEW_MODE'])?$_SESSION['VIEW_MODE']:0);
+        
+    if (isset($form_state['values']['struct']))
+        $struct=$form_state['values']['struct'];
+    else
+        $struct=(isset($_SESSION['VIEW_MODE_STRUCT'])?$_SESSION['VIEW_MODE_STRUCT']:0);
+        
+    $form['view_mode']=array(
+        '#type'=>'radios',
+        '#title'=>'Modalit&agrave; di raggruppamento',
+        '#options'=>array('nessun raggruppamento','per dipartimento','per struttura'),
+        '#default_value'=>$view_mode,
+        '#attributes'=>array('onclick'=>"this.form.submit();"),
+        '#prefix' => '<div class="container-inline">', '#suffix' => '</div>'
+    );
+/*    $form['struct']=array(
+        '#type'=>'select',
+        '#title'=>'Struttura',
+        '#options'=>get_structure(NULL,40),
+        '#default_value'=>$struct,
+        '#attributes'=>array('onclick'=>"this.form.submit();"),
+    );
+ * 
+ */
+    $form['button']=array(
+        '#type'=>'submit',
+        '#title'=>'aggiorna',
+        '#value'=>'aggiorna',
+        '#submit'=>array('budget_plan_submit'),
+        '#prefix'=>'<span style="display:none;>',
+        '#suffix'=>'</span>'
+    );
+
+ /*   $header=array('ID',
+                  array('data'=>'Descrizione', 'field'=> 'n.title'),
+                  array('data'=>'Struttura','field'=>"st.description"),
+                  array('data'=>'Approvato','field'=>"approved",'attributes'=>array(
+                      'style'=>'text-align:right;')),
+                  array('data'=>'Modifiche','field'=>"planned",'attributes'=>array(
+                      'style'=>'text-align:right;')),
+                  array('data'=>'Speso','field'=>"(rp.cost * IF(rp.cost_vat=0,"._WITH_IVA.",1))",'attributes'=>array(
+                      'style'=>'text-align:right;')),
+                  array('data'=>'Bilancio','attributes'=>array(
+                      'style'=>'text-align:right;'))
+                );
+  *
+  */
+     switch ($view_mode) {
+         case 0: $form[$dpt]['tot']=array('#value'=>get_all($filter));break;
+         case 1: $form[$dpt]['tot']=array('#value'=>group_by_dpt($filter));break;
+         case 2: $form[$dpt]['tot']=array('#value'=>group_by_struct($filter));break;
+     }
+     return $form;
+
+}
+function budget_plan_submit($form, &$form_state){
+    $_SESSION['VIEW_MODE']=$form_state['values']['view_mode'];
+    $_SESSION['VIEW_MODE_STRUCT']=$form_state['values']['struct'];
+
+ }
+/**
+ * restituisce i conteggi economici raggruppati per struttura.
+ * I conteggi sono tutti calcolati iva inclusa in base all'aliquota della richiesta.
+ * I valori dei conteggi sono 3:
+ * <ul><li> approvato, il preventivo contenuto nella richiesta approvata</li>
+ *     <li> previsto o preventivato, le eventuali nuove previsioni di spesa sucessive all'approvazione</li>
+ *     <li> speso, spesa effettiva sostenuta</li>
+ * </ul>
+ * Viene in oltre calcolata la variazione in + o in -, rispetto all'approvato, di quanto speso o quanto preventivato.
+ * <br>
+ * <i>Metodo di calcolo dei costi:</i><br>
+ * I costi approvati sono relativi alla versione della richiesta legata al budget (vid2),
+ * i costi attuali invece sono relativi alla versione corrente della richieta (vid in node)
+ * e vengono mostrati solo se diversi da quelli approvati.
+ * Il costo reale appare invece solo quando la richiesta assume lo stato di "acquistata" cioÃ¨ Ã¨ evasa
+ * in questo caso viene confrontato il valore di acquisto con il valore approvato e il previsto viene trascurato
+ * @param <type> $filter filtro nel caso visualizzata si voglia vedereuna sola struttura.
+ * @return <html text> tabella dei conteggi
+ */
+function group_by_struct($filter){
+     $qy=db_query(
+        "SELECT (ra.value *  IF(ra.value_vat=0,"._WITH_IVA.",1)) as approved,
+		(rp.value * IF(rp.value_vat=0,"._WITH_IVA.",1)) as planned,
+		(rp.cost * IF(rp.cost_vat=0,"._WITH_IVA.",1)) as cost,
+		(CAST(ra.value *  IF(ra.value_vat=0,"._WITH_IVA.",1) AS SIGNED) -
+				 CAST(IF(rp.rcq_status = "._CLOSED.",
+						rp.cost *  IF(rp.cost_vat=0,"._WITH_IVA.",1),
+						rp.value *  IF(rp.value_vat=0,"._WITH_IVA.",1)
+						) AS SIGNED)
+		) AS variation,
+		n.nid as nid,
+                st.description as struct,
+                rp.rcq_status as status,
+                p.description as dpt
+                     FROM "._BONDED_REQUESTS." bl
+                     INNER JOIN {node} n ON n.nid=bl.nid
+                     INNER JOIN "._REQUESTS_TABLE." rp ON rp.nid=n.nid AND rp.vid=n.vid
+                     INNER JOIN "._REQUESTS_TABLE." ra ON ra.nid=bl.nid AND ra.vid=bl.vid
+                     INNER JOIN "._STRUCT_TABLE." ST ON st.id=rp.struct
+                     INNER JOIN "._STRUCT_TABLE." p ON (st.parent=p.id OR (st.id=p.id AND st.parent=0))
+                     ".($filter<>''?' WHERE '.$filter:'')." ORDER BY p.description,st.description");
+     $dpt='';
+     $struct='';
+     $output='';
+     $header=array('ID','Descrizione',
+          'Approvato','Modifiche','Speso','Bilancio');
+
+     while($res=db_fetch_object($qy)){
+         if($struct<>$res->struct){
+             if ($struct<>'') {
+                $tot=theme_row($tot) ;
+                $rows[]=array(array('data'=>'<i>Totale struttura '.$struct.'</i>','colspan'=>2),
+                                $tot[0], $tot[1], $tot[2], $tot[3],
+
+                               );
+                $structR[]=array(theme('table',$header,$rows,array(),'<big>'.$struct.'</big>'));
+             }
+             $rows=array();
+             $tot=array(0,0,0,0);
+             $struct=$res->struct;
+         }
+
+
+        $variation=0;
+        if ($res->variation <> 0)
+            $variation='<span '.($res->variation<0?'style="color : red; text-align: right;"':'style="color : green; text-align: right;"').'>'.
+                        currencyFormat($res->variation);
+
+        $rows[]=array(
+            info_popup($res->nid),
+            nl($res->nid),
+            ($res->approved<>0)?currencyFormat($res->approved):'<b>Integrazione</b>',
+            ($res->approved<>$res->planned)?(($res->status == _MOVED)?'<b>Sostituita</b>':currencyFormat($res->planned)):'',
+            ($res->status==_CLOSED)?currencyFormat($res->cost):'',
+            $variation
+        );
+        $tot[0]+=$res->approved;
+        $tot[1]+=$res->planned;
+        $tot[2]+=$res->cost;
+        $tot[3]+=$res->variation;
+     }
+     if($struct<>$res->struct){
+             if ($struct<>'') {
+                $tot=theme_row($tot) ;
+                $rows[]=array(array('data'=>'<i>Totale struttura '.$struct.'</i>','colspan'=>2),
+                                $tot[0], $tot[1], $tot[2], $tot[3],
+                               );
+                $structR[]=array(theme('table',$header,$rows,array(),'<big><b>'.$struct.'</b></big>'));
+             }
+     }
+     return theme ('table',array(''),$structR);
+}
+
+
+function group_by_dpt($filter){
+     $qy=db_query(
+        "SELECT sum(ra.value *  IF(ra.value_vat=0,"._WITH_IVA.",1)) as approved,
+		sum(rp.value * IF(rp.value_vat=0,"._WITH_IVA.",1)) as planned,
+		sum(rp.cost * IF(rp.cost_vat=0,"._WITH_IVA.",1)) as cost,
+		sum(CAST(ra.value *  IF(ra.value_vat=0,"._WITH_IVA.",1) AS SIGNED) -
+				 CAST(IF(rp.rcq_status >= "._CLOSED.",
+						rp.cost *  IF(rp.cost_vat=0,"._WITH_IVA.",1),
+						rp.value *  IF(rp.value_vat=0,"._WITH_IVA.",1)
+						) AS SIGNED)
+		) AS variation,
+		n.nid as nid,
+                st.description as struct,st.short as prefix,
+                p.description as dpt
+                     FROM "._BONDED_REQUESTS." bl
+                     INNER JOIN {node} n ON n.nid=bl.nid
+                     INNER JOIN "._REQUESTS_TABLE." rp ON rp.nid=n.nid AND rp.vid=n.vid
+                     INNER JOIN "._REQUESTS_TABLE." ra ON ra.nid=bl.nid AND ra.vid=bl.vid
+                     INNER JOIN "._STRUCT_TABLE." ST ON st.id=rp.struct
+                     INNER JOIN "._STRUCT_TABLE." p ON (st.parent=p.id OR (st.id=p.id AND st.parent=0))
+                     ".($filter<>''?' WHERE '.$filter:'')." GROUP BY st.description ORDER BY p.description,st.description");
+     $dpt='';
+     $struct='';
+     $output='';
+     $header=array(/*'',
+         'ID','Descrizione',*/
+          'Struttura','Approvato','Modifiche','Speso','Bilancio');
+          
+     while($res=db_fetch_object($qy)){
+         if($dpt<>$res->dpt){
+             if ($dpt<>'') {
+                $tot=theme_row($tot) ;
+                $rows[]=array('<b>Totale DPT '.$dpt.'</b>',
+                                $tot[0], $tot[1], $tot[2], $tot[3],
+                                
+                               );
+                $DptR[]=array(theme('table',$header,$rows,array(),'<big><b>'.$dpt.'</b></big>'));
+             }
+             $rows=array();
+             $tot=array(0,0,0,0);
+             $dpt=$res->dpt;
+         }
+         
+
+        $variation=0;
+        if ($res->variation <> 0)
+            $variation='<span '.($res->variation<0?'style="color : red; text-align: right;"':'style="color : green; text-align: right;"').'>'.
+                        currencyFormat($res->variation);
+
+        $rows[]=array(/*'',
+             info_popup($res->nid),
+            nl($res->nid),*/
+            $res->prefix.' '.$res->struct,
+            ($res->approved<>0)?currencyFormat($res->approved):'<b>Integrazione</b>',
+            ($res->approved<>$res->planned)?(($res->planned<>0)?currencyFormat($res->planned):'<b>Sostituita</b>'):'',
+            ($res->cost<>0)?currencyFormat($res->cost):'',
+            $variation
+        );
+        $tot[0]+=$res->approved;
+        $tot[1]+=$res->planned;
+        $tot[2]+=$res->cost;
+        $tot[3]+=$res->variation;
+     }
+     if ($dpt<>'') {
+        $tot=theme_row($tot) ;
+        $rows[]=array('<b>Totale DPT '.$dpt.'</b>',$tot[0],$tot[1],$tot[2],$tot[3]);
+        $DptR[]=array(theme('table',$header,$rows,array(),'<b>'.$dpt.'</b>'));
+     }
+     return theme ('table',array(''),$DptR);
+}
+
+
+function get_all($filter){
+     $qy=
+        "SELECT (ra.value *  IF(ra.value_vat=0,"._WITH_IVA.",1)) as approved,
+		(rp.value * IF(rp.value_vat=0,"._WITH_IVA.",1)) as planned,
+		(rp.cost * IF(rp.cost_vat=0,"._WITH_IVA.",1)) as cost,
+		(CAST(ra.value *  IF(ra.value_vat=0,"._WITH_IVA.",1) AS SIGNED) -
+				 CAST(IF(rp.rcq_status >= "._CLOSED.",
+						rp.cost *  IF(rp.cost_vat=0,"._WITH_IVA.",1),
+						rp.value *  IF(rp.value_vat=0,"._WITH_IVA.",1)
+						) AS SIGNED)
+		) AS variation,
+		n.nid as nid,
+                st.description as struct,st.short as prefix,
+                p.description as dpt
+                     FROM "._BONDED_REQUESTS." bl
+                     INNER JOIN {node} n ON n.nid=bl.nid
+                     INNER JOIN "._REQUESTS_TABLE." rp ON rp.nid=n.nid AND rp.vid=n.vid
+                     INNER JOIN "._REQUESTS_TABLE." ra ON ra.nid=bl.nid AND ra.vid=bl.vid
+                     INNER JOIN "._STRUCT_TABLE." ST ON st.id=rp.struct
+                     INNER JOIN "._STRUCT_TABLE." p ON (st.parent=p.id OR (st.id=p.id AND st.parent=0))
+                     ".($filter<>''?' WHERE '.$filter:'')." ORDER BY p.description,st.description";
+//    print $qy;
+    $qy=db_query($qy);
+    $output='';
+    $header=array('ID',
+                  array('data'=>'Descrizione', 'field'=> 'n.title'),
+                  array('data'=>'Struttura','field'=>"st.description"),
+                  array('data'=>'Approvato','field'=>"approved"),
+                  array('data'=>'Modifiche','field'=>"planned"),
+                  array('data'=>'Speso','field'=>"(rp.cost * IF(rp.cost_vat=0,"._WITH_IVA.",1))"),
+                  array('data'=>'Bilancio')
+                );
+     while($res=db_fetch_object($qy)){
+        $variation=0;
+        if ($res->variation <> 0)
+            $variation='<span '.($res->variation<0?'style="color : red; text-align: right;"':'style="color : green; text-align: right;"').'>'.
+                        currencyFormat($res->variation);
+
+        $rows[]=array(
+            info_popup($res->nid),
+            nl($res->nid),
+            $res->prefix.' '.$res->struct,
+            ($res->approved<>0)?currencyFormat($res->approved):'<b>Integrazione</b>',
+            ($res->approved<>$res->planned)?(($res->planned<>0)?currencyFormat($res->planned):'<b>Sostituita</b>'):'',
+            ($res->cost<>0)?currencyFormat($res->cost):'',
+            $variation
+        );
+        
+     }
+     return theme ('table',$header,$rows);
+}
+
+
+
+function theme_row($row){
+    if ($row[3]<> 0) $variation='<span '.
+            ($row[3]<0?'style="color : red; text-align: right;"':
+            'style="color : green; text-align: right;"').'>'.currencyFormat($row[3]);
+        else
+            $variation=0;
+   return array(currencyFormat($row[0]),
+        ($row[0]<>$row[1]?currencyFormat($row[1]):''),
+        currencyFormat($row[2]),
+        $variation
+    );
+}
+function budget_delete($node) {
+
+    db_query("DELETE  FROM {node_revisions} WHERE nid=%d",$node->nid );
+    db_query("DELETE  FROM "._BONDED_REQUESTS." WHERE bnid=%d",$node->nid );
+    db_query("DELETE  FROM "._BUDGET_TABLE." WHERE nid=%d",$node->nid );
+    db_query("DELETE FROM {node} WHERE  nid=%d",$node->nid );
+/* TODO:
+	cancellare i figli
+	cancellare i commenti
+	debug
+
+*/
+}
+
+
+
+
+function budget_form_alter(&$form, &$form_state, $form_id) {
+    global $user;
+/* cambio del pulsante di approvazione del budget
+   e direcupero fondi
+*/
+
+    if($form_id=='request_listcheck') {
+        $form['add_to_budget']=approve_form($form_state);
+        unset($form['approve']);
+        unset($form['move']);
+    }
+    if ($form_id=='control_button') {
+        unset ($form['approve']);
+        unset ($form['move']);
+    }
+
+}
+
+
+/**
+ * inserisce la form di inserimento delle richieste sui budget
+ * può essere applicata alla lista delle richieste o alle singole richieste
+ * @param <type> $form
+ * @param <type> $form_state
+ * @param <type> $request
+ */
+function approve_form(&$form_state,$request=NULL) {
+    if ($request<>NULL){
+        $node=  node_load($request);
+        $status=$node->rcq_status; //abilita la form nelle selezioni multiple
+    }
+    $form['budget']=array(
+        '#type'=>'fieldset',
+        '#title'=>'Gestione Approvazione',
+        '#collapsible'=> TRUE,
+        '#collapsed'=>TRUE,
+        '#attributes'=>array('command'=>'command'),
+        '#access'=>  user_access(_MODIFY_REQUEST) && ($status==_EVALUTATE || $status==_OPEN || $status==_APPROVED || $request===NULL),
+
+    );
+    $form['budget']['out_budget']=array(
+        '#type'=> 'button',
+        '#weight'=>3,
+        '#executes_submit_callback' => TRUE,
+        '#submit'=>array('out_budget_submit'),
+        '#value'=> t('Approva fuori piano'),
+        '#access'=> ($status==_EVALUTATE || $status==_OPEN || $request===NULL),
+    );
+        
+    $form['budget']['cmd']=array(
+        '#type'=> 'button',
+        '#weight'=>3,
+        '#executes_submit_callback' => TRUE,
+        '#submit'=>array('approve_submit'),
+        '#value'=> t('Approva'),
+        '#access'=> ($status==_EVALUTATE || $status==_OPEN || $request===NULL),
+    );
+    $form['budget']['approve']=array(
+        '#type'=> 'button',
+        '#weight'=>3,
+        '#executes_submit_callback' => TRUE,
+        '#submit'=>array('move_submit'),
+        '#value'=> t('Sostituisci'),
+        '#access'=> ($status==_APPROVED || $request===NULL),
+    );
+         /*
+         *
+         */
+
+ /*     $form['budget']['cmd']=$form['approve'];
+        unset($form['approve']);
+        $form['budget']['cmd']['#weight']=2;
+        $form['budget']['move']=$form['move'];
+        unset($form['move']);
+        $form['budget']['move']['#weight']=4;
+        if (!user_access(_FULL_MANGE_RCQ)) {
+            unset($form['close']); //elimina la possibilit� di chiusura delle richieste
+        }
+        //ridefiniamo le chiamate
+        $form['budget']['cmd']['#submit']=array('approve_submit');
+        $form['budget']['move']['#submit']=array('move_submit');
+*/
+    $qy=db_query("SELECT nid,title FROM {node} WHERE type='budget' ORDER BY created DESC");
+    $budget_list[0]='<nuovo piano>';
+
+    while ($row=db_fetch_object($qy)) $budget_list[$row->nid]=$row->title;
+    $form['budget']['bdg_list']=array(
+        '#type'=>'select',
+        '#title'=>'Approva sul pianodi acquisto',
+        '#descriprion' =>'selezione del piano di riferimento',
+        '#options'=>$budget_list,
+        '#default_value'=>0,
+        '#access'=> ($status==_EVALUTATE || $status==_OPEN || $request===NULL),
+    );
+
+    $form['budget']['comment']=array(
+        '#type'=>'textfield',
+        '#title'=>'Motivo variazione',
+        '#description'=>'Il motivo &egrave; obbligatorio per le sostituzioni e le approvazioni fuoripiano.',
+        '#prefix'=>'<p>',
+        '#descriprion' =>'Indicare il motivo della varizione di piano.',
+        '#element_validate'=>array('bdg_comment_validate'),
+    );
+
+    if (isset($request))
+        $form['gara_box']['request']=array(
+            '#type'=>'hidden',
+            '#value'=>$request,
+        );
+
+    return $form;
+}
+function bdg_comment_validate(&$element, $form_state){
+    if (strlen($form_state['values']['comment'])<=4 && (
+            $form_state['clicked_button']['#value']==t('Sostituisci') ||
+            $form_state['clicked_button']['#value']==t('Approva fuori piano')
+        )
+       )
+        form_error($element,'Le sostituzioni e le voci fuori piano vanno giustificate.');
+}
+
+/**
+ * approva le voci sul sul budget
+ *
+ * @global <type> $user
+ * @param <type> $form
+ * @param <type> $form_state
+ */
+function approve_submit($form, &$form_state) {
+    $msg='';
+    if ($form_state['values']['form_id']=='request_listcheck' && isset($form_state['values']['refs']))
+        $refs=$form_state['values']['refs'];
+    else
+        $refs=array($form_state['values']['request']=>1);
+    foreach ($refs as $nid => $set) {
+        if ($set<>0) {
+            $msg=approve_rcq($nid,$form_state['values']['bdg_list']);
+        }
+    }//foreach ($form_sta...
+    if ($msg<>'') drupal_set_message("$msg",'warning',TRUE);
+//FIXME: il cambio di stato dovrebbe essere fatto in approve_rcq
+//    call_user_func_array('request_listcheck_sbmt',array($form, &$form_state));
+}
+
+/**
+ * approva la voce sul piano selezionato o lo crea nuovo
+ *
+ * @param <type> $nid
+ *  id richiesta
+ * @param <type> $bNid
+ *  id budget, se 0 ne crea uno nuovo
+ * @return <type>
+ *  il messaggio di errore in nel caso oppure  la stringa vuota
+ */
+function approve_rcq($nid,&$budgetNid) {
+    global $user;
+    $node=  node_load($nid);
+    $status=$node->rcq_status;
+    if (!($status ==_EVALUTATE || $status==_RIVALUTATE))
+        return "La richiesta $nid non pu&ograve; essere approvata, &egrave; ancora da valutare.<br>";
+    $row=  db_result(db_query('SELECT nid FROM {'._BONDED_REQUESTS.'} where nid=%d',$node->nid));
+    //$row=db_fetch_object(db_query("SELECT rNid,bNid FROM "._BUDGET_LEAVES." WHERE rNid=".$nid));
+    if ($row) {
+        return ' Richiesta '.$nid.' gi&agrave; presente in un budget <br>';
+    }
+    else {
+    // inserimento
+        if ($budgetNid==0) {
+        //creazione nuovo budget  richiesto
+            $title='Nuovo piano creato il '.format_date(time());
+            db_query ("INSERT INTO {node_revisions} (title,uid,timestamp,body,teaser,log)
+                                                       VALUES ('".$title."',".$user->uid.",".time().",'".$title."','".$title."','Prima stesura')");
+            $bVid=db_last_insert_id('node_revisions','vid');
+            db_query ("INSERT INTO {node} (vid,type,language,uid,created,changed,title)
+                                                       VALUES (".$bVid.",'budget','it',".$user->uid.",".time().",".time().",'".$title."')");
+            $budgetNid=db_last_insert_id('node','nid');
+
+            db_query("UPDATE {node_revisions} SET nid=".$budgetNid.", timestamp=".time()." WHERE vid=".$bVid);
+            $form_state['values']['bdg_list']=$budgetNid;
+            db_query("INSERT INTO "._BUDGET_TABLE." (nid,vid,value,value_vat,pNid) VALUES (%d,%d,%d,%d,0)", $budgetNid,$bVid,0,0);
+        }//if ($bNid==0)...
+
+        db_result(db_query("INSERT INTO {"._BONDED_REQUESTS." (bnid, nid, vid, created, uid) VALUES (%d,%d,%d,%d,%d)",
+                          $budgetNid,$node->nid,$node->vid,time(),$user->uid));
+        //FIXME: il cambio di stato andrebbe verificato in altro modo direttametne da request
+        update_request_status($nid,_APPROVED,'Richiesta approvata su piano investimenti n.'.$budgetNid);
+    }
+    return '';
+}
+
+/**
+ * recupera i fondi delle voci approvate dalla form
+ * @param <type> $form
+ * @param <type> $form_state
+ */
+function move_submit($form, &$form_state) {
+    $msg='';
+    if ($form_state['values']['form_id']=='request_listcheck' && isset($values['refs']))
+        $refs=$form_state['values']['refs'];
+    else
+        $refs=array($form_state['values']['request']=>1);
+    foreach ($refs as $nid => $set) {
+        if ($set<>0) {
+        //verifica presenza qualche budget
+            $msg=move_rcq($nid);
+            if ($msg=='') {
+                $comment['nid']=$nid;
+                $comment['subject']='Motivo sostituzione';
+                $comment['comment']=$form_state['values']['comment'];
+                $comment['name']=$user->name;
+                $comment['uid']=$user->uid;
+                comment_save($comment);
+            }
+        }
+    }
+    if ($msg<>'') drupal_set_message("$msg",'warning',TRUE);
+//FIXME: il cambio di stato dovrebbe essere fatto in approve_rcq
+//    call_user_func_array('request_listcheck_sbmt',array($form, &$form_state));
+}
+
+/**
+ *  recupera i fondi della voce selezionata
+ * @param <type> $nid
+ * @return
+ *  la eventuale stringa di errore
+ */
+function move_rcq($nid) {
+    $node=  node_load($nid);
+    $status=$node->rcq_status;
+    if (!($status == _APPROVED || $status==_TEC_DOC))
+        return "La richiesta $nid non &egrave; approvata e non ci sono fondi da recuperare<br>";
+    $msg='';
+    $row=get_aggregator($nid,'budget');
+    if (!$row)
+        $msg.= 'La richiesta '.$nid.' non &egrave; presente in un piano non si possono recuperare i fondi<br>';
+    else {
+        
+        if ($node->cost==0) {
+            $node->revision=TRUE;
+            $node->log='Richiesta modificata per riutilizo fondi';
+            $node->value=0;
+            $node->value_vat=0;
+//FIXME: questa operazione andrabbe fatta sotto il controllo di request            
+            $node->rcq_status=_MOVED;
+            node_save($node);          
+        }
+        else $msg.='La richiesta '.$nid.' &egrave; stata evasa non  si possono recuperare fondi.';
+    }
+    return $msg;
+}
+
+
+/**
+ * imposta le richieste selezionate come fuoripiano
+ *
+ * @param <type> $form
+ * @param <type> $form_state
+ */
+function out_budget_submit($form, &$form_state) {
+    global $user;
+    $msg='';
+    if ($form_state['values']['form_id']=='request_listcheck' && isset($form_state['values']['refs']))
+        $refs=$form_state['values']['refs'];
+    else
+        $refs=array($form_state['values']['request']=>1);
+    foreach ($refs as $nid => $set) {
+        if ($set==0) continue;
+        $msg=out_budget($nid,$form_state['values']['bdg_list']);
+        if ($msg=='') {
+            $comment['nid']=$nid;
+            $comment['subject']='Motivo dell\'integrazione di budget';
+            $comment['comment']=$form_state['values']['comment'];
+            $comment['name']=$user->name;
+            $comment['uid']=$user->uid;
+            comment_save($comment);
+        }
+    }//foreach ($form_sta...
+    if ($msg<>'') drupal_set_message("$msg",'warning',TRUE);
+}
+
+/**
+ * inserisce la riciesta 'fuori piano'
+ * @param <type> $nid
+ *  richiesta
+ * @param <type> $budgetNid
+ *  piano s cui inserirla
+ */
+function out_budget($nid,$budgetNid) {
+    $node=  node_load($nid);
+    $status=$node->rcq_status;
+    if ($status <> _EVALUTATE && $status<>_RIVALUTATE && $status<>_OPEN)
+        return "La richiesta $nid non pu&ograve; essere approvata, &egrave; ancora da valutare.<br>";
+    //verifica presenza in altro budget
+    $row=get_aggregator($nid,'budget');
+    $msg='';
+    if ($row) {
+        $msg.= ' Richiesta '.$nid.' gi&agrave; in piano non pu&ograve; essere messa fuori piano <br>';
+    }
+    else {
+    // inserimento
+        if ($budgetNid==0) {
+            drupal_set_message('Selezionare un piano esistente per le richieste fuori piano<br>','warning',TRUE);
+        }//if ($bNid==0)...
+        else {
+                
+                $node->revision=TRUE;
+                $node->log='Richiesta fuori piano';
+                $value=$node->value;
+                $cost=$node->cost;
+                $node->value=0; // salva l'approvato a valore ZERO
+                node_save($node);
+                aggregate_node($budgetNid,$nid,db_result(db_query("SELECT vid FROM {node} WHERE nid=%d",$nid)));
+                $node->value=$value; //ripristina  il valore del bene fuori piano
+                $node->cost=$cost;
+                $node->log='Richiesta approvata fuori piano';
+                $node->rcq_status=_APPROVED;
+                node_save($node); // salva l'aggiornamento
+                drupal_set_message("Richiesta approvata fuori piano ID:<b>".$nid."</b>");
+
+        }
+
+    }
+    return $msg;
+}
+
+/**
+ * elenca i piani di investimento
+ * @return <type>
+ */
+function budget_all() {
+    $qy=db_query(
+        "SELECT nid, n.created as created,n.changed as changed,name FROM {node} n
+			INNER JOIN {users} u ON u.uid=n.uid
+			WHERE type='budget' ORDER BY created DESC"
+    );
+    while ($res=db_fetch_object($qy)) {
+        $rows[]=array(nl($res->nid),format_date($res->created),format_date($res->changed),$res->name);
+    }
+    $header=array('Descrizione','Inserito','Modificato','Creato da');
+    $form['table']=array('#value' =>theme('table',$header,$rows));
+    return $form;
+}
+
+/*-----------------------------BLOCK PART-----------------------------------------*/
+
+function budget_block($op='list', $delta=0, $edit=array() ) {
+
+}
+
+
+/*------------------------------------menu hook-----------------------------------
+ **/
+function budget_menu() {
+
+    $items=array();
+
+
+    $items['budget'] = array(
+        'title' => 'Piani di investimento',
+        'access arguments' => array( _AUTH_VIEW),
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('budget_all'),
+    );
+ /*   $items['gare/list'] = array(
+		'title' => 'Gare attive',
+//		'page callback' => 'drupal_get_form',
+		'page arguments' => array('budget_list_form'),
+		'access arguments' => array( _AUTH_VIEW),
+
+	);
+
+*/
+
+    return $items;
+}
+
+
+
+
+
+
+/*  ---------------------- other functions ----------------------------------------- */
+/* summary hook called by gratcore hook_summary
+	return block with title description and content*/
+function budget_summary() {
+    global $user;
+    $structure ='';
+    $block['title']='Investimenti';
+    $block['description']='Ivestimenti in corso.';
+    $block['content']='<table><tr><td>';
+
+// Lista strutture interessate
+    if (!(user_access(_MANGE_RCQ) || user_access(_FULL_MANGE_RCQ) || $user->uid==0)) {
+        if (isset($user->struct)&&($struct=queryStruct($user->struct))) $structure.=' AND r.struct IN ('.$struct.')';
+        $block['title'].= ' di: <ul><li>';
+        $s=$user->struct;
+        if (!is_array($s)) $c[]=$s; else $c=$s;
+        $b=get_structure($c);
+        $block['title'].= implode('</li><li>',$b).'</li></ul>';
+    }
+
+// recupera il piano corrente
+    $qy="SELECT n.nid as nid, n.title as title FROM "._BUDGET_TABLE." b
+         INNER JOIN {node} n ON n.nid=b.nid
+         ORDER BY n.created DESC";
+    $current=db_fetch_object(db_query($qy)); //pesca il primo piano creato
+    if (!$current) return $block;
+
+    $where="WHERE N.type='request' AND a.nid=".$current->nid.$structure;
+    // sintesi per stato
+    $block['content'].=sum_block('Stato richieste correnti ( '.$current->title.')','r.rcq_status ',request_status_message(),$where);
+
+    //stampa del totale
+    $qy=db_query("SELECT count(N.nid) as count, sum(R.value) as value
+		FROM {node} n INNER JOIN "._REQUESTS_TABLE." r ON n.nid=r.nid AND n.vid=r.vid
+                INNER JOIN "._BONDED_REQUESTS." a ON a.bnid=n.nid
+                WHERE N.type='request' AND
+		    a.nid=".$current->nid." AND  r.rcq_status IN ("._APPROVED.","._TEC_DOC.","._PUBLISHED.")$structure"
+            );
+    $block['content'].='<br><div class="body">
+			   	<p>'.
+        t('Totale richieste pendenti ('.$current->title.')').'&nbsp;'.
+        l(($res=db_fetch_object($qy))?$res->count:0,'request/list').' (valore '.currencyFormat($res?$res->value:0).')
+			   	</p>';
+    $block['content'].='</div>';
+
+
+    $where="WHERE r.rcq_status IN ("._APPROVED.","._TEC_DOC.","._PUBLISHED.") AND a.nid<>".$current->nid.$structure;
+
+
+    $block['content'].=sum_block('Richieste pendenti piani precedenti','b.title',NULL,$where);
+
+
+    $block['content'].='</td><td>';
+
+    $where="WHERE r.rcq_status IN ("._APPROVED.","._TEC_DOC.","._PUBLISHED.")$structure";
+
+    // sintesi per priorit?
+    $block['content'].=sum_block('Priorit&agrave;','R.priority',get_priority(),$where);
+    // sintesi per tipologia
+    $block['content'].=sum_block('Tipo di acquisto','R.type_acq',get_type_acq(),$where);
+    // sintesi per classificazione
+    $block['content'].=sum_block('Classificazione','R.classification',get_classification(),$where);
+
+    $block['content'].='</td></tr></table>';
+//---------------------
+    return $block;
+}
+
+function sum_block($title,$field,$labels,$where) {
+    $qy="SELECT count(n.nid) as count, sum(r.value) as value, $field as reference
+		  FROM "._REQUESTS_TABLE." r 
+                   INNER JOIN {node} n ON n.nid=r.nid AND n.vid=r.vid
+                   INNER JOIN "._BONDED_REQUESTS." a ON a.nid=n.nid
+                   INNER JOIN {node} b ON b.nid=a.bnid AND b.type='budget' 
+                   ".$where.
+        " GROUP BY $field ORDER BY b.created DESC, $field DESC";
+    $sum=0;
+    $ss='';
+    $res1=db_query($qy);
+    while ($res=db_fetch_object($res1)) {
+        $ss.='<li><div class="body"><p class="description">'.
+            ((isset($labels))?$labels[$res->reference]:$res->reference).'&nbsp;<strong>'.
+            $res->count.'</strong>&nbsp;(valore <strong>'.currencyFormat($res->value).'</strong>)
+			    </p></div></li>';
+        $sum+=$res->value;
+    }
+    $block.='<br><em>'.$title.'</em><ul>'.$ss.'</ul>';
+    return $block;
+}
+
+
+function add_request_budget_interface(&$node,$op,$a3,$a4) {
+    global $user;
+    switch ($op) {
+ /*       case 'alter':break; // Html output ready we can alter it
+        case 'presave': break;
+        case 'delete':break;
+        case 'delete revision':break;
+        case 'load':break;
+        case 'prepare':break;
+        case 'prepare translation':break;
+        case 'print':break;
+        case 'search result':break;
+        case 'update index':break;
+        case 'validate':break;
+ */
+        case 'load':
+            $gid=db_result(db_query("SELECT bnid  FROM {"._BONDED_REQUESTS."} WHERE nid=%d ",$node->nid));
+            if ($gid && ! isset($node->budget))$node->budget=$gid;
+            break;
+        case 'insert':
+        case 'update':
+            break;
+        case 'view':
+            if (isset($node->budget)) {
+                insert_aggregation($node->content,$node->budget,$a3);
+            }
+            if (!$a3) // not in teaser
+                $node->content['add_Budget']=array('#value'=>drupal_get_form('approve_form',$node->nid));
+           break;
+    }
+
+
+}
