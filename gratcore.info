@@ -1,0 +1,10 @@
+; $Id$
+name = gratcore
+description = Modulo di base per la gestione Attivit&agrave; aziendali  
+core = 6.x
+;dependencies[] = Core
+;dependencies[] = Node 
+;dependencies[] = Upload
+package =  GRAT
+version = 6.x-0.2
+

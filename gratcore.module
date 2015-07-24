@@ -1,0 +1,463 @@
+<?php
+// $Id$
+
+include_once('gratcore.php.inc');
+include_once('structure-admin.php.inc');
+
+/**
+ * Display help and module information
+ * @param path which path of the site we're displaying help
+ * @param arg array that holds the current path as would be returned from arg() function
+ * @return help text for the path
+ */
+function gratcore_help($path, $arg) {
+    $output = '';
+    switch ($path) {
+        case "admin/help#gratcore":
+            $output = '<p>'.  t("modulo principale per la gestione  amministrativa gare e documentazioni") .'</p>';
+            break;
+    }
+    return $output;
+} // function gratcore_help
+
+
+/**
+ * Valid permissions for this module
+ * @return array An array of valid permissions for the onthisdate module
+ */
+
+function gratcore_perm() {
+
+    return core_permission();
+} // function gratcore_perm()
+
+function gratcore_access($op, $node) {
+// return user_is_logged_in();
+    return TRUE;
+}
+
+function gratcore_init() {
+    drupal_add_css(drupal_get_path('module', 'gratcore') .'/gratCore.css','module');
+    drupal_add_css(drupal_get_path('module', 'gratcore') .'/jquery.qtip2.css','module');
+    drupal_add_css(drupal_get_path('module', 'gratcore') .'/js/treeview/jquery.treeview.css','module');
+ //   use of qTips 2.0
+ /**/   
+    
+    drupal_set_html_head('<!--[if lt IE 9]><script language="javascript" type="text/javascript" src="'.
+         drupal_get_path('module', 'gratcore') . '/js/jplot/excanvas.min.js"></script><![endif]-->');
+    drupal_add_js(drupal_get_path('module', 'gratcore') . '/js/jplot/jquery.1.9.js','module');
+    
+    
+    drupal_add_js(drupal_get_path('module', 'gratcore') . '/js/jquery.qtip2.js','module');
+    
+    drupal_add_js(drupal_get_path('module', 'gratcore') . '/js/treeview/jquery.treeview.js','module');
+    drupal_add_js(drupal_get_path('module', 'gratcore') . '/js/jquery.sparkline.js','module');
+    
+    drupal_add_js(drupal_get_path('module', 'gratcore') . '/js/jplot/jquery.jqplot.js','module');
+    
+    drupal_add_js(drupal_get_path('module', 'gratcore') . '/js/jplot/plugins/jqplot.highlighter.min.js','module');
+    drupal_add_js(drupal_get_path('module', 'gratcore') . '/js/jplot/plugins/jqplot.cursor.min.js','module');
+    drupal_add_js(drupal_get_path('module', 'gratcore') . '/js/jplot/plugins/jqplot.pieRenderer.min.js','module');
+    drupal_add_js(drupal_get_path('module', 'gratcore') . '/js/jplot/plugins/jqplot.bubbleRenderer.min.js','module');
+    drupal_add_js(drupal_get_path('module', 'gratcore') . '/js/jplot/plugins/jqplot.donutRenderer.min.js','module');
+    drupal_add_js(drupal_get_path('module', 'gratcore') . '/js/jplot/plugins/jqplot.barRenderer.min.js','module');
+    drupal_add_js(drupal_get_path('module', 'gratcore') . '/js/jplot/plugins/jqplot.categoryAxisRenderer.min.js','module');
+    drupal_add_js(drupal_get_path('module', 'gratcore') . '/js/jplot/plugins/jqplot.dateAxisRenderer.min.js','module');
+    drupal_add_js(drupal_get_path('module', 'gratcore') . '/js/jplot/plugins/jqplot.trendline.min.js','module');
+    
+    drupal_add_css(drupal_get_path('module', 'gratcore') .'/js/jplot/jquery.jqplot.css','module');
+    
+    // ripristina il riferimento alla funzione $ di jquery 1.2
+    drupal_add_js(drupal_get_path('module', 'gratcore') . '/js/noConflictJQuery.js','module');
+
+    drupal_add_js(drupal_get_path('module', 'gratcore') . '/js/gratCore.js','module');
+    
+     
+  /* 
+  
+    drupal_add_js(drupal_get_path('module', 'gratcore') . '/js/jquery.qtip.js');
+    drupal_add_js(drupal_get_path('module', 'gratcore') . '/js/gratCore.js');
+   */
+}
+
+/* TODO: load/update form for cnd table
+   	 load/update form for ARS list /*
+
+
+/*-----------------------------HOOKS -----------------------------------------*/
+
+function gratcore_node_info() {
+
+}
+
+function gratcore_delete($node) {
+
+}
+
+function gratcore_form(&$node) {
+
+}
+
+function gratcore_insert($node) {
+
+}
+
+function gratcore_update($node) {
+
+}
+
+function gratcore_load($node) {
+
+}
+
+function gratcore_view($node, $teaser = FALSE, $page = FALSE) {
+
+}
+
+function gratcore_block($op = 'list', $delta = 0, $edit = array()) {
+    include_once('gratBlock.php.inc');
+    return gratBlock($op, $delta, $edit);
+}
+
+function gratcore_search($op = 'search', $keys = null) {
+
+    switch ($op) { 			//A string defining which operation to perform:
+
+/*		case 'name': 		//the hook should return a translated name defining the type of items that are searched for with this module ('content', 'users', ...)
+	    case 'reset': 		//the search index is going to be rebuilt. Modules which use hook_update_index() should update their indexing bookkeeping so that it starts from scratch the next time hook_update_index() is called.
+*/		case 'search': 		//the hook should perform a search using the keywords in $keys
+            if (is_numeric($keys)) {
+                $res=db_query("SELECT * FROM {node} WHERE nid=%d ",trim($keys));
+                $results=array();
+                while ($r=db_fetch_object($res)) {
+                    $results[]=array(
+                        'link'=>'/node/'.$keys,
+                        'type'=>$r->type,
+                        'title'=>$r->title,
+                        'date'=>$r->created,
+                    );
+                }
+            }
+            break;
+    }
+/*		case 'status': 		///if the module implements hook_update_index(), it should return an array containing the following keys:
+								//o remaining: the amount of items that still need to be indexed
+								//o total: the total amount of items (both indexed and unindexed)
+	$keys The search keywords as entered by the user.
+	Return value
+
+	An array of search results. Each item in the result set array may contain whatever information the module wishes to display as a search result.
+		To use the default search result display, each item should be an array which can have the following keys:
+
+		* link: the URL of the found item
+		* type: the type of item
+		* title: the name of the item
+		* user: the author of the item
+		* date: a timestamp when the item was last modified
+		* extra: an array of optional extra information items
+		* snippet: an excerpt or preview to show with the result (can be generated with search_excerpt())
+
+	Only 'link' and 'title' are required, but it is advised to fill in as many of these fields as possible.
+*/
+    return $results;
+}
+
+
+/**/
+function gratcore_user($op, &$edit, &$account, $category =NULL) {
+    include_once('gratUser.php.inc');
+    return userAddOns($op, $edit, $account, $category);
+}
+
+/*------------------------------------menu hook-----------------------------------
+ **/
+function gratcore_menu() {
+
+    $items=array();
+
+    $items['cud/autocomplete'] = array(
+        'title' => 'autocomplete',
+        'page callback' => 'autocompleteCud',
+        'access arguments' => array(_QUERY),
+        'type' => MENU_CALLBACK
+    );
+    $items['id/autocomplete'] = array(
+        'title' => 'autocomplete',
+        'page callback' => 'autocompleteID',
+        'access arguments' => array(_QUERY),
+        'type' => MENU_CALLBACK
+    );
+    $items['node/teaser/%'] = array(
+        'title' => 'Node info',
+        'page callback' => 'node_info',
+        'page arguments' => array(2),
+        'access arguments' => array(_QUERY),
+        'type' => MENU_CALLBACK
+    );
+    $items['node/comment/tips/%'] = array(
+        'title' => 'comments',
+        'page callback' => 'node_comment_tips',
+        'page arguments' => array(3),
+        'access arguments' => array(_QUERY),
+        'type' => MENU_CALLBACK
+    );
+    $items['cud/description'] = array(
+        'title' => 'autocomplete',
+        'page callback' => 'autocompleteCudDesc',
+        'access arguments' => array(_QUERY),
+        'type' => MENU_CALLBACK
+    );
+    $items['grat/main'] = array(
+        'title' => 'Sommario',
+        'page callback' => 'main_summary',
+        'access arguments' => array(_QUERY),
+
+    );
+    $items['node/statuslog/%'] = array(
+        'title' => 'Retrive node status',
+        'page callback' => 'node_statuslog',
+        'page arguments' => array(2),
+        'access arguments' => array(_QUERY),
+        'type' => MENU_CALLBACK
+    );
+   
+    $items['admin/settings/GIT_updates'] = array(
+        'title' => 'G.I.T. update catalogs',
+        'description'=>'Gestione cataloghi',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('update_list'),
+        'access arguments' => array(_QUERY),
+        'type' => MENU_NORMAL_ITEM,
+        'file'=>'structure-admin.php.inc',
+
+    );
+    $items['admin/settings/structure'] = array(
+        'title' => 'G.I.T. struttura aziendale',
+        'description'=>'Gestione della struttura organizzativa aziendale',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('struct_list'),
+        'file'=>'structure-admin.php.inc',
+        'type' => MENU_NORMAL_ITEM,
+        'access arguments' => array(_QUERY),
+    );
+        
+    $items['admin/settings/structure/add'] = array(
+        'title' => 'Aggiungi',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('struct_admin_form','new'),
+        'file'=>'structure-admin.php.inc',
+        'access arguments' => array(_MANAGE_PROFILE),
+        'type' => MENU_NORMAL_ITEM
+    );
+    $items['admin/settings/structure/%/edit'] = array(
+        'title' => 'Modifica',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('struct_admin_form',3),
+        'file'=>'structure-admin.php.inc',
+        'access arguments' => array(_MANAGE_PROFILE),
+        'type' => MENU_CALLBACK
+    );
+    $items['gratCore/userSearch/%'] = array(
+        'title' => 'AJAX popup utenti',
+        'page callback' => 'output_users',
+        'page arguments' => array(2),
+        'file'=>'structure-admin.php.inc',
+        'access arguments' => array(_QUERY),
+        'type' => MENU_CALLBACK
+    );
+
+    return $items;
+}
+
+
+/*------------------------- base theming---------------------------------------------*/
+
+
+
+
+
+/*  ---------------------- other functions ----------------------------------------- */
+
+function NOP($i) { return $i;}
+function main_summary() {
+/*	$my_module=get_core_modules();
+	foreach($my_module as $key=>$val){
+		if (function_exists($ff=$node->type.'_statistics'))
+			$output.=call_user_func_array($ff).'<br>';
+		else
+			$output.='<br>';
+	}
+*/	
+    $stripe=0;
+    $blocks[]=budget_summary();
+    $block['title']='';
+    $block['description']='';
+    $block['content']='';
+    $blocks[]=$block;
+    $container=array('left'=>'','right'=>'');
+    foreach ($blocks as $block) {
+        $output = '<div class="admin-panel">
+			    <h3>'.
+            $block['title'].
+            '</h3><div class"body"><p class="description">'.
+            $block['description'].
+            '</p>';
+
+        $output .= $block['content'];
+
+        $output .= '</div></div>';
+        $container[(++$stripe % 2 ? 'left':'right' )].=$output;
+    }
+
+    return ((mktime(0,0,0,11,10,2012)>=time())?'<h1 style="color: green;text-align: center;">Abilitato l\'inserimento di nuove richieste per il piano invastimenti 2013.<br>
+                                                                                              Il termine per gli inserimenti &egrave; fissato al giorno 10 novembre 2012.<br>'
+                                                                                              .l('Inizia qui.','node/add/request',array('html'=>TRUE)).'</h1>'
+            :'<h1 style="color: red;text-align: center;">Inserimento richieste terminato.</h1>').
+        '
+	    <div class="left core-block">'.$container['left'].'</div>
+		<div class="right core-block"> '.$container['right'].'</div>';
+}
+
+/* prints status log for a node*/
+function node_statuslog($nid) {
+    if (!is_numeric($nid)) return "no status";
+    $node=node_load($nid);
+    $message=(function_exists($ff=$node->type.'_status_message'))?$ff:'NOP';
+    $header=array(
+        array('data'=> t('Data'),'field'=>'A.changed'),
+        array('data'=> t('Stato'),'field'=>'A.status'),
+        array('data'=> t('Eseguito da'),'field'=>'U.name'),
+    );
+    $query=db_query("SELECT  U.name as name, A.status as status, A.changed as changed
+		  		   FROM (SELECT status, uid, nid, changed  FROM  "._STATUS_TABLE." UNION SELECT status, uid, nid, changed  FROM "._STATUS_TABLE_LOG.") A
+		  		   INNER JOIN {users} U ON A.uid=U.uid WHERE A.nid=%d ".tablesort_sql($header),$nid);
+    while ($res=db_fetch_object($query)) {
+        $rows[]=array(
+            format_date($res->changed),
+            call_user_func_array($message, $res->status),
+            $res->name
+        );
+    }
+    return theme('table',$header,$rows);
+}
+
+function autocompleteCud($string = NULL) {
+    $matches = array();
+    $table=_CUD_TABLE;
+    $filter='';
+    if ($string) {
+        $string=htmlspecialchars_decode($string);
+        $string=str_replace("'", ' ',$string);
+        foreach(explode(' ',$string) as $key => $val) $filter.=($filter<>''?' AND ':'')."LOWER($table.desc) LIKE LOWER('%%".$val."%%')";
+        $result = db_query_range("SELECT id, $table.desc as description, civab, last_level FROM $table WHERE ".$filter." ORDER BY id ", 0, 20);
+        while ($cud = db_fetch_object($result)) {
+            $matches[$cud->id] = ($cud->last_level == 'N'?'<strong><i>'.strtolower($cud->description).'</i></strong>':$cud->description).' (<small><span class="submitted">Civab:</span>'.$cud->civab.'|<span class="submitted">CND:</span>'.$cud->id.' )</small>';
+        }
+    }
+    drupal_json($matches);
+}
+function autocompleteCudDesc($string = NULL) {
+    $matches = array();
+    $table=_CUD_TABLE;
+    $filter='';
+    if ($string) {
+        $string=htmlspecialchars_decode($string);
+        $string=str_replace("'", ' ',$string);
+        foreach(explode(' ',$string) as $key => $val) $filter.=($filter<>''?' AND ':'')."LOWER($table.desc) LIKE LOWER('%%".$val."%%')";
+        $result = db_query_range("SELECT id, $table.desc as description, last_level FROM $table WHERE ".$filter." ORDER BY id ", 0, 20);
+        while ($cud = db_fetch_object($result)) {
+            $matches[$cud->description.' (CND:'.$cud->id.')'] = ($cud->last_level == 'N'?'<strong><i>'.strtolower($cud->description).'</i></strong>':$cud->description).' (<small><span class="submitted">Civab:</span>'.$cud->civab.'|<span class="submitted">CND:</span>'.$cud->id.' )</small>';
+        }
+    }
+    drupal_json($matches);
+}
+
+
+function autocompleteID($string = NULL) {
+    $matches = array();
+    $table='{node}';
+    $filter='';
+    if ($string) {
+        if (is_numeric($string)) $filter=" FORMAT(n.nid,0) LIKE '%%".$string."%%' ";
+        else foreach(explode(' ',$string) as $key => $val) $filter.=($filter<>''?' AND ':'')."LOWER(title) LIKE LOWER('%%".$val."%%')";
+        $result = db_query_range("SELECT n.nid as nid, title, type FROM {node} n
+    						  INNER JOIN ( SELECT nid, status FROM "._STATUS_TABLE." WHERE status IN (300,500,501,502,503)) s ON s.nid=n.nid
+    						  WHERE ".$filter." ORDER BY n.nid ",0,10);
+        while ($node = db_fetch_object($result)) {
+            $matches[$node->nid] = '<small><strong><i>'.strtolower(t($node->type)).':</i>'.$node->nid.'</strong> '.strtoupper(check_plain($node->title)).'</small>';
+        }
+    }
+    drupal_json($matches);
+}
+
+
+
+function get_cud_description($cud_id) {
+    if ($cud_id) {
+        if ($res=db_query("SELECT LOWER("._CUD_TABLE.".desc) as des, civab, id FROM "._CUD_TABLE." WHERE id='".$cud_id."'")) {
+            $obj=db_fetch_object($res);
+            return $obj->des.' (cnd:'.$obj->id.'|civab:'.$obj->civab.')';
+        }
+    }
+}
+
+function node_info($nid){
+    if (isset($nid) && $nid!==NULL) {
+         $out=node_view(node_load($nid),TRUE,FALSE);
+         echo $out;
+    }
+    else  echo '';
+    exit(0);
+}
+
+/**
+ *  carica un riassunto dei commenti sul nodo
+ * @param <type> $nid
+ */
+function node_comment_tips($nid) {
+    if (empty($nid) || $nid===NULL) {
+        echo '';
+        return ;
+    }
+    
+    $qy='SELECT comment,timestamp,name FROM {comments} WHERE
+         nid = %d AND status = %d ORDER BY timestamp DESC';
+    $qy=db_query($qy,$nid,COMMENT_PUBLISHED);
+    $rows.='<tr><th>Commento</th><th><small>data</small></th><th><small>autore</small></th></tr>';
+    while ($rs=db_fetch_object($qy)){
+        $rows.='<tr><td>'.$rs->comment.'</td>';
+        $rows.='<td><small>'.format_date($rs->timestamp,'custom','d/m/Y').'</small></td>';
+        $rows.='<td><small>'.$rs->name.'</small></td></tr>';
+    }
+    echo '<table>'.$rows.'</table>';
+    return ;
+}
+
+
+
+function gratcore_theme() {
+    
+    $theme['tree_view_check']['arguments']['form']=NULL;
+    $theme['tree_view_check']['file']='structure-admin.php.inc';
+    $theme['struct_admin']['arguments']['structs']=NULL;
+    $theme['struct_admin']['file']='structure-admin.php.inc';
+    return $theme;
+//    return array(
+//        'struct_admin' => array(
+//        'arguments' => array('structs' => NULL),
+//        'file'=>'structure-admin.php.inc',
+//        ),
+//    );
+}
+
+
+
+/**
+ * recupeta l'orgnigramma ad albero per una select
+ * @param <int> $stID id della struttura di riferimento, se NULL seleziona tutte
+ *        le strutture disponibili all'interno di $selectSTRUCT
+ * @param <int> $size dimensione delle stringhe di descrizione
+ * @param <array> $selectSTRUCT  array contente gli id delle strutture selezionate  (tutte se NULL)
+ * @param <string> $all_LABEL ettichetta da attirbuire alla selezione 0
+ */
+

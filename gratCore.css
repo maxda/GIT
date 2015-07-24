@@ -1,0 +1,132 @@
+/* $Id: admin.css,v 1.18.2.1 2008/04/25 21:01:54 goba Exp $ */
+
+/*
+** Formatting for base core page
+*/
+.i_delete  {
+
+    padding-left: 20px;
+    background: url(icons/delete-b14x14.png) no-repeat;
+}
+
+sup.notice a {
+
+    color: #ffae00;
+    padding-left: 12px;
+    background: url(icons/notes.png) no-repeat;
+
+}
+
+.i_new  {
+    font-weight: bold;
+    padding-left: 12px;
+    background: url(icons/new_doc.png) no-repeat;
+
+}
+a:link.i_updated  {
+    font-style:italic;
+    text-decoration:blink;
+    padding-left: 12px;
+    background: url(icons/updated_doc.png) no-repeat;
+}
+
+.i_attach  {
+    color: #09c000;
+    padding-left: 12px;
+    background: url(icons/download.png) no-repeat;
+
+}
+.i_info {
+    padding-left: 18px;
+    background: transparent url(icons/info.png) no-repeat;
+}
+.container-small {
+    font-size:smaller;
+    overflow:hidden;
+    /*	text-overflow: ellipsis; */
+    color: #898989;
+}
+
+.filterSet {
+    text-decoration:blink;
+    font-size:medium;
+    color: green;
+}
+
+fieldset[command] {
+    border:none;
+    background: url(images/bg-tab.png) repeat-x ;
+}
+fieldset[command] legend{
+    border:solid;
+    border-width:thin;
+    border-color:#D9EAF5;
+    
+}
+
+fieldset[command] legend a {
+    background:none;
+    font-size:medium;
+    color:black;
+    background: url(images/bg-tab.png) repeat-x ;
+   
+}
+
+span[button='notify'] {
+   background: url(images/bg-tab.png) repeat-x ;
+   border:1px solid;
+   color:red;
+   font:bold;
+}
+.idGIT{
+    padding: 0.2em;
+}
+.description.idGIT{
+    font-size: 1em;
+    border: solid black 1px;
+    color: black;
+    font-weight: bold;
+    background-color: transparent;
+}
+.nid.idGIT{
+    font-size: 1em;
+    color: white;
+    font-weight: bolder;
+    background-color: black;
+    text-align: right;
+    border: solid black 1px;
+}
+
+.integer,.number {
+    text-align: right;
+}
+/*
+style for tooltips with that structure
+
+<div class="qtip qtip-stylename">
+   <div class="qtip-tip" rel="cornerValue"></div>
+   <div class="qtip-wrapper">
+      <div class="qtip-borderTop"></div> // Only present when using rounded corners
+      <div class="qtip-contentWrapper">
+         <div class="qtip-title"> // All CSS styles...
+            <div class="qtip-button"></div> // ...are usually applied...
+         </div>
+         <div class="qtip-content"></div> // ...to these three elements!
+      </div>
+      <div class="qtip-borderBottom"></div> // Only present when using rounded corners
+   </div>
+</div>
+
+*/
+
+/*
+.qtip .qtip-wrapper .qtip-borderTop,
+.qtip .qtip-wrapper .qtip-contentWrapper,
+.qtip .qtip-wrapper .qtip-title .qtip-button,
+.qtip .qtip-wrapper .qtip-borderBottom,
+.qtip .qtip-tip {
+   opacity:0.65;
+   font-weight:bold;
+}
+
+*/
