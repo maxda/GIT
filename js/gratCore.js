@@ -126,7 +126,9 @@ Drupal.behaviors.gratCore = function(context) {
     //                'settings' --[json object with dowing options]
     //              ]
     // ]
-    
+   
+
+
       var plots=Drupal.settings.plots;
       $jq.jqplot.config.enablePlugins = true;
       for (var i in plots){
@@ -136,6 +138,7 @@ Drupal.behaviors.gratCore = function(context) {
         try {options.axesDefaults.labelRenderer=eval(options.axesDefaults.labelRenderer);} catch (error){}
         try {options.axes.xaxis.renderer=eval(options.axes.xaxis.renderer);} catch (error){}
         try {options.axes.yaxis.renderer=eval(options.axes.yaxis.renderer);} catch (error){}
+        try {options.legend.renderer=eval(options.legend.renderer);} catch (error){}
              //mancano alcuni plugin...
         
         
@@ -152,6 +155,49 @@ Drupal.behaviors.gratCore = function(context) {
 //          plot.replot();
 //      });
 
+ // dynamic ajax plot
+
+//$jq('div.plot[src]').each( function () {
+//    var url = '?q=' + $jq(this).attr('src');
+//    var ajaxData = function(){
+//        var ret = nul;
+//        $jq.ajax({
+//            async: false,
+//            url: url,
+//            dataType: "json",
+//            success: function(data){
+//                ret=data;
+//            }
+//        });
+//
+//        return ret;
+//    };
+//    var plot = ajaxData();
+//    $jq.jqplot.config.enablePlugins = true;
+//        var options=plots['settings'];
+//        // valuta i plugin
+//        try {options.seriesDefaults.renderer=eval(options.seriesDefaults.renderer);} catch (error){}
+//        try {options.axesDefaults.labelRenderer=eval(options.axesDefaults.labelRenderer);} catch (error){}
+//        try {options.axes.xaxis.renderer=eval(options.axes.xaxis.renderer);} catch (error){}
+//        try {options.axes.yaxis.renderer=eval(options.axes.yaxis.renderer);} catch (error){}
+//        try {options.legend.renderer=eval(options.legend.renderer);} catch (error){}
+//             //mancano alcuni plugin...
+//        
+//        
+//        var obj= plots['data'];
+//        var  dt =[]
+//        for( var j in obj){
+//            dt[j]=obj[j]
+//        }
+//        //check id contenitore
+//        var id = $jq(this).attr('id');
+//        if(typeof id === typeof undefined || id === false) {
+//            id=randomString(32, '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ');
+//            $jq(this).setAttribute('id',id)
+//        }
+//        $jq.jqplot(id, dt ,options);
+//      }
+//});
 
 };// end Drupal.behaviours...
 
