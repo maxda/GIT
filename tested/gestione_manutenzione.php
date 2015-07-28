@@ -1201,7 +1201,7 @@ function sommario_programmate($detail = NULL) {
             $rows[] = $row;
             unset($row);
         }
-        return theme('table', array('crticit&agrave;', 'mandir mancost', array('class' => 'number', 'data' => 'totali'),
+        return grafico_manutenzioni_programmate().'<br/>'.theme('table', array('crticit&agrave;', 'mandir mancost', array('class' => 'number', 'data' => 'totali'),
             array('class' => 'number', 'data' => 'Verifiche<br/>sicurezza'), array('class' => 'number', 'data' => '%'), array('class' => 'number', 'data' => 'Manutenzioni<br/>preventive'), array('class' => 'number', 'data' => '%'),
             array('class' => 'number', 'data' => 'Controlli<br/>qualit&agrave;'), array('class' => 'number', 'data' => '%')), $rows, array(), 'Conteggi manuenzioni programamte fuori tempi massimi / totali specifici');
     } else {
@@ -1227,7 +1227,7 @@ function sommario_programmate($detail = NULL) {
         $qy = oci_parse($conn, $summary_query);
         oci_execute($qy, OCI_DEFAULT);
         while ($rw = oci_fetch_object($qy)) {
-            $last_cr = 0;//controllo ultima correttiva 
+            $last_cr = 0; //controllo ultima correttiva 
             $rw->APPA_CODI = l($rw->CLAP_NOME, 'tested/si3c/APPA_CODI/' . $rw->APPA_CODI);
             UNSET($rw->CLAP_NOME);
             if (is_null($rw->LAST_VS)) {
@@ -1245,7 +1245,7 @@ function sommario_programmate($detail = NULL) {
                 $rw->MP_COUNT = '';
             } else
                 $last_cr = max($last_cr, strtotime($rw->LAST_MP));
-            if (!is_null($rw->LAST_CR) && (strtotime($rw->LAST_CR) > $last_cr) && $last_cr ) {
+            if (!is_null($rw->LAST_CR) && (strtotime($rw->LAST_CR) > $last_cr) && $last_cr) {
                 $rows[] = array('data' => (array) $rw, 'class' => 'highlight');
             } else {
                 $rows[] = (array) $rw;
@@ -1264,4 +1264,104 @@ function _set_query($query) {
     $ref = hash('md5', rand());
     $_SESSION['programmata'][$ref] = $query;
     return $ref;
+}
+
+/**
+ * grafica la progressione delle attività programmate
+ * @return string placeholder contenitore per il grafico jPlot
+ */
+function grafico_manutenzioni_programmate() {
+    //grafico interventi aperti negli ultimi giorni  
+//    $year = format_date(time(), 'custom', 'Y'); // anni a ritroso
+    $qy_conteggi = "
+        SELECT --CL.CLAP_CRIT AS CRIT, 
+       MD.APAT_VALO AS MANDIR_MANCOST,
+       M.D AS D, COUNT(M.T) AS C, M.T AS T
+            -- a.CLAP_ECON, a.STCO_CODI , a.SIST_CODI , 
+            -- a.APPA_DESC , a.APPA_CODI_INVE , a.APPA_CODI_MATR , a.APPA_CODI_AUSI, a.MANU_CODI, a.STAP_CODI 
+            FROM SI3C.SN_T_APPA A
+            LEFT JOIN SI3C.SN_T_CLAP CL ON CL.CLAP_CODI=A.CLAP_CODI AND CL.CLAP_CANC='N'
+            LEFT JOIN SI3C.SN_T_APAT MD ON MD.APPA_CODI=A.APPA_CODI AND MD.APAT_CANC='N' AND MD.ATTR_CODI=99991148 -- mandir-mancost            
+            LEFT JOIN (
+                        ( SELECT APPA_CODI,  TO_CHAR(VESI_DATA,'YYYY-MM-DD') AS D , 'Sic.Elettrica' AS T FROM SI3C.SN_T_VESI 
+                            WHERE VESI_CANC='N' AND VESI_STAT in ('A','C','V') AND VESI_INDI_COLL='N' 
+                        )   -- VERIFICHE sicurezza 
+                        UNION 
+                        ( SELECT APPA_CODI,  TO_CHAR(VESI_DATA,'YYYY-MM-DD') AS D, 'Contr.Qualit&agrave;' AS T FROM SI3C.SN_T_VESI  
+                            WHERE VESI_CANC='N' AND VESI_STAT in ('A','C','V') AND VESI_INDI_COLL='N' AND VESI_INDI_PRES = 'S'
+                        )  -- VERIFICHE FUNZIONALI O CONTROLLI DI QUALITà
+                        UNION
+                        ( SELECT APPA_CODI, TO_CHAR(INPR_DATA_FINE,'YYYY-MM-DD') AS D, 'Man.Preventiva' AS T FROM SI3C.SN_T_INPR 
+                            WHERE INPR_CANC='N' AND inpr_apmp_stat='C'
+                        ) --preventive 
+                       ) M ON A.APPA_CODI=M.APPA_CODI 
+
+            WHERE a.APPA_CANC='N'  AND a.STAP_CODI in ('OK' , 'FD') AND NOT  M.D IS NULL AND M.D >= '2014-01-01' AND M.D <= '".format_date(time(), 'custom', 'Y-m-d').
+           "' GROUP BY M.T, M.D, MD.APAT_VALO --, CL.CLAP_CRIT
+            ORDER BY M.D";
+    $conn = si3c_connect();
+    $qy = oci_parse($conn, $qy_conteggi);
+    oci_execute($qy, OCI_DEFAULT);
+    while ($rw = oci_fetch_array($qy)) {
+        $d[$rw['MANDIR_MANCOST']][$rw['T']][] = array($rw['D'], (integer) $rw['C'],);
+    }
+    if (!isset($d))
+        return;
+    foreach ($d as $M => $T) {
+        foreach ($T as $l => $c) {
+            $data['plots']['activity']['data'][] = $c;
+            $series[] = array('label' => $l . '(' . $M . ')');
+        }
+    }
+
+    $data['plots']['activity']['settings'] = array(
+        'title' => 'Manutenzioni programmate effettuate dal 01/01/2014',
+//        'seriesColors' => array('#d46c6c', '#d2d46c', '#77d46c', '#6c83d4', '#c1c2d0'),
+        'series' => $series,
+
+        'axes' => array(
+            'xaxis' => array(
+                'renderer' => '$jq.jqplot.DateAxisRenderer',
+                'tickOptions' => array(
+                    'formatString' => '%Y-%m-%d',
+                    'autoscale' => true
+                ),
+            ),
+            'yaxis' => array(
+                'tickOptions' => array(
+                    'formatString' => '%d'
+                ),
+//                    'min'=>-1,
+//                    'max'=>$max +2,
+                'autoscale' => true,
+//                    'label'=>'scala giorni intervento'
+            ),
+//                'y2axis' => array(
+//                    'tickOptions' => array( 
+//                        'formatString' => '%d&nbsp;gg'
+//                      ),
+//                    
+//                    'label'=>'scala accumulatore'
+//                ),
+        ),
+//      'highlighter'=> array(
+//        'show'=> true,
+//        'sizeAdjust'=>7.5
+//      ),
+        'cursor' => array(
+//              'show'=> false,
+            'zoom' => true,
+            'looseZoom' => true
+        ),
+        'legend' => array(
+            'renderer'=>'$jq.jqplot.EnhancedLegendRenderer',
+            'show' => true, 
+            'location' => 'ne',
+            'placement'=>'outsideGrid',
+            'seriesToggle'=>'normal',
+            )
+    );
+    drupal_add_js($data, 'setting');
+
+    return '<div id="activity"></div>';
 }
