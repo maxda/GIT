@@ -63,7 +63,8 @@ function gratcore_init() {
     drupal_add_js(drupal_get_path('module', 'gratcore') . '/js/jplot/plugins/jqplot.barRenderer.min.js','module');
     drupal_add_js(drupal_get_path('module', 'gratcore') . '/js/jplot/plugins/jqplot.categoryAxisRenderer.min.js','module');
     drupal_add_js(drupal_get_path('module', 'gratcore') . '/js/jplot/plugins/jqplot.dateAxisRenderer.min.js','module');
-    drupal_add_js(drupal_get_path('module', 'gratcore') . '/js/jplot/plugins/jqplot.trendline.min.js','module');
+    drupal_add_js(drupal_get_path('module', 'gratcore') . '/js/jplot/plugins/jqplot.trendline.min.js','module'); 
+    drupal_add_js(drupal_get_path('module', 'gratcore') . '/js/jplot/plugins/jqplot.enhancedLegendRenderer.min.js','module');
     
     drupal_add_css(drupal_get_path('module', 'gratcore') .'/js/jplot/jquery.jqplot.css','module');
     
