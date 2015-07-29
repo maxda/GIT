@@ -683,6 +683,14 @@ function tested_menu() {
         'access arguments' => array(_MODIFY_TESTED),
         'type' => MENU_CALLBACK,
     );
+    $items['tested/plot/%/%'] = array(
+        'title' => 'ajax plot',
+        'page callback' => 'ajax_plot',
+        'file' => 'si3c_lnk.php.inc',
+        'page arguments' => array(2,3),
+        'access arguments' => array(_VIEW_TESTED),
+        'type' => MENU_CALLBACK,
+    );
     $items['tested/canone'] = array(
         'title' => 'Tabelle canoni',
         'page callback' => 'tabella_canone',

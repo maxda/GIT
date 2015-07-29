@@ -2107,7 +2107,7 @@ function export_risk(){
  */
 
 function grafico_Mean_Times($graph){
-    $HTMLid='MTBF';//id contenitore grafici
+    
     if(!isset($graph['curves'])) return FALSE;
     foreach($graph['curves'] as $type=>$curve){ //carica i dati 
         ksort($curve);
@@ -2115,10 +2115,10 @@ function grafico_Mean_Times($graph){
             $d=format_date($day*3600,'custom','Y-m-d');
             $dt[]=array($d,(float)($type=='A'?$value*100:$value/24));
         }
-        $data['plots'][$HTMLid]['data'][]=$dt;
+        $data['data'][]=$dt;
         unset($dt);
         if ($type=='A') 
-            $series[]=array('label'=>'Disponibilit&agrave;',
+            $series[]=array('label'=>"Disponibilità",
                             'yaxis'=>'y2axis',
                             'color'=>'#77d46c'
             );
@@ -2127,8 +2127,8 @@ function grafico_Mean_Times($graph){
                 
     }
  //javascript configuration object
-  $data['plots'][$HTMLid]['settings'] = array(
-        'title' => 'Analisi disponibilit&agrave;',
+  $data['options'] = array(
+        'title' => "Analisi disponibilità",
         'seriesColors' => array('#6c83d4','#d46c6c','#d2d46c', '#c1c2d0',  ),
         'seriesDefaults'=>Array(
 //            'linePattern'=> 'dashed',
@@ -2143,12 +2143,12 @@ function grafico_Mean_Times($graph){
                 'autoscale'=>true,
 //                'numberTicks'=> 5,
                 'tickOptions' => array(
-                    array('formatString' => '%b&nbsp;%#d')
+                    array('formatString' => '%b %#d')
                 ),
             ),
                 'yaxis' => array(
                     'tickOptions' => array(
-                        'formatString' => '%d&nbsp;gg'
+                        'formatString' => '%d gg'
                       ),
 //                    'min'=>-1,
 //                    'max'=>$max +2,
@@ -2159,7 +2159,7 @@ function grafico_Mean_Times($graph){
                     'min'=>85,
                     'max'=> 100,
                     'tickOptions' => array( 
-                        'formatString' => '%d&nbsp;%'
+                        'formatString' => '%d %'
                       ),                    
 //                    'label'=>'Disponibilit&agrave;'
                 ),         
@@ -2176,7 +2176,7 @@ function grafico_Mean_Times($graph){
            ),
            'legend' => array('show' => true, 'location' => 's', 'placement'=>'outsideGrid')
     );
-    drupal_add_js($data,'setting');
+    return $data;
   
 }
 

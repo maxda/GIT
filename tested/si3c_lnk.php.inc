@@ -29,11 +29,9 @@ function select_filter_range($appa_codi) {
             return 'APPA_CODI IN (' . implode(',', $appa_codi) . ') AND ';
         } else if (is_numeric($appa_codi)) {
             return " APPA_CODI=$appa_codi  AND ";
-        }
-        else
+        } else
             return '';
-    }
-    else
+    } else
         return '';
 }
 
@@ -52,8 +50,10 @@ function test_si3c($sede, $codice) {
         '#type' => 'fieldset',
         '#collapsible' => TRUE,
         '#collapsed' => FALSE,
-        '#value' => '<table><tr><td><div id="graph"></div></td></tr>
-                  <tr><td><div id="MTBF"></div></td></tr></table>',
+        '#value' => '<table><tr><td>
+             <div class="plot" src="tested/plot/grafici_appareccchiatura/' . $codice . '">
+             </div></td></tr>
+             <tr><td><div class="plot" src="tested/plot/grafici_disponibilita/' . $codice . '"></div></td></tr></table>',
         '#attributes' => array('class' => 'grafici')
     );
     $conteggi = array(
@@ -84,7 +84,6 @@ function test_si3c($sede, $codice) {
     $output.=drupal_render($conteggi);
     $output.=drupal_render($grafici);
     $output.= '</td></tr></table>';
-    grafico_richieste_intervento($codice); //associato ai due id sopra
     $output.=drupal_render($t);
 
     return $output;
@@ -216,11 +215,11 @@ function lista_richieste_intervento() {
     $rows[] = array('Interventi  nel mese in corso:', $count_o['C'], $count_c['C']);
     $output.=theme('table', array('', 'Aperti', 'Chiusi'), $rows, array(), '<h2>Riassuntivi generali</h2>');
 
-    $output.=grafico_interventi_aperti();
+    $output.='<div class="plot" src="tested/plot/interventi_aperti/null"></div>';
 
     //  $fields=get_table_fields('SI3C.T_RIIN','r');
     unset($rows);
-    $headers = array('Num.', 
+    $headers = array('Num.',
         array('field' => 'c.CLAP_NOME', 'data' => 'APPARECCHIATURA'),
         array('field' => 'r.RIIN_DATA_RICE', 'data' => 'Ricevuta'),
         array('field' => 'r.RIIN_DATA_FINE', 'data' => 'Chiusa'),
@@ -264,7 +263,7 @@ function lista_richieste_intervento() {
                     continue;
                 //ettichetta 
                 if ($lbl == 'APPA_CODI') {
-                    $rw[] = l(device_name($cc), 'tested/si3c/APPA_CODI/' . $cc, array('html' => TRUE)).'<br/><small>(ric. ' . $row['RIIN_CODI'] . ' | 
+                    $rw[] = l(device_name($cc), 'tested/si3c/APPA_CODI/' . $cc, array('html' => TRUE)) . '<br/><small>(ric. ' . $row['RIIN_CODI'] . ' | 
                         Int. ' . $row['INTE_CODI'] . ')</small> '; //.'#IN-'.$row['INTE_CODI']);
                 } else if ($lbl == 'CECO_CODI') {
                     // recupera il nome della struttura associata
@@ -280,8 +279,7 @@ function lista_richieste_intervento() {
                         $h = ($row['INTERVAL'] - $d) * 24;
                         $m = ($h - trunc($h)) * 60;
                         $rw[] = $d . ':' . trunc($h) . ':' . trunc($m);
-                    }
-                    else
+                    } else
                         $rw[] = $cc;
                 }
             }
@@ -315,8 +313,6 @@ function libromacchina($appa_codi) {
         '#value' => item_risk_table($appa_codi, TRUE),
         '#attributes' => array('class' => 'tabella_rischi')
     );
-    $data = MT_stats($appa_codi);
-    grafico_Mean_Times(unserialize($data['data']));
     $output = get_collaudi($appa_codi);
     $output.= drupal_render($t);
     $output.= richiesta_associata($appa_codi);
@@ -387,8 +383,7 @@ function build_table($oracle_query, $table_name, $field_id = NULL, $function = N
                         $headers[] = $show;
                     }
                     $row[] = array('data' => $val, 'class' => $lbl, 'value' => $val);
-                }
-                else
+                } else
                     continue;
         $rows[] = array('data' => $row, 'no_striping' => TRUE);
         unset($row);
@@ -422,7 +417,8 @@ function build_table($oracle_query, $table_name, $field_id = NULL, $function = N
  * @return type
  */
 function sostituzione_ettichette($riferimento, $valore) {
-    if (is_null($valore) || is_null($riferimento)) return $valore;
+    if (is_null($valore) || is_null($riferimento))
+        return $valore;
     $conn = si3c_connect();
     $q = oci_parse($conn, "SELECT RV_MEANING FROM SI3C.V_REF_CODES_LING
                             WHERE RV_DOMAIN = '$riferimento' 
@@ -450,8 +446,7 @@ function device_name($appa_codi) {
             $name = $r['CLAP_NOME'];
         }
         return $name;
-    }
-    else
+    } else
         return 'Device sconosciuto';
 }
 
@@ -504,17 +499,17 @@ function targa_macchina(&$codice, $sede = 'APPA_CODI') {
                             '#collapsed' => TRUE,
                             '#value' => $inventario,
                             '#attributes' => array('class' => 'inventario'));
-                        $rows[] = array('<b>' . $lbl . ':</b>', drupal_render($inventario));      
-                        if ($accessori=ascott_schede($inv[0],$inv[1])) {
-                        $accessori = array(
-                            '#title' => 'Accessori',
-                            '#type' => 'fieldset',
-                            '#collapsible' => TRUE,
-                            '#collapsed' => TRUE,
-                            '#value' => $accessori,
-                            '#attributes' => array('class' => 'inventario'));
-                        $rows[] = array('Accessori', drupal_render($accessori));
-                        continue;
+                        $rows[] = array('<b>' . $lbl . ':</b>', drupal_render($inventario));
+                        if ($accessori = ascott_schede($inv[0], $inv[1])) {
+                            $accessori = array(
+                                '#title' => 'Accessori',
+                                '#type' => 'fieldset',
+                                '#collapsible' => TRUE,
+                                '#collapsed' => TRUE,
+                                '#value' => $accessori,
+                                '#attributes' => array('class' => 'inventario'));
+                            $rows[] = array('Accessori', drupal_render($accessori));
+                            continue;
                         }
                     }
                 }
@@ -532,20 +527,19 @@ function targa_macchina(&$codice, $sede = 'APPA_CODI') {
     }
     //recupero attributi estesi 
     unset($rows);
-    $ext =" SELECT ATTR_NOME, APAT_VALO "
+    $ext = " SELECT ATTR_NOME, APAT_VALO "
             . "FROM SI3C.T_APAT v "
             . "INNER JOIN SI3C.T_ATTR t ON t.ATTR_CODI=v.ATTR_CODI AND t.ATTR_CANC='N' AND t.ATTR_VALI='S' "
             . "INNER JOIN SI3C.T_APPA a ON a.APPA_CODI=v.APPA_CODI AND a.SEDE_CODI=v.SEDE_CODI AND a.APPA_CANC='N' "
             . "WHERE v.APAT_CANC='N' $filtro ORDER BY ATTR_NOME";
-    $ext = oci_parse($conn,$ext);
+    $ext = oci_parse($conn, $ext);
     oci_execute($ext, OCI_DEFAULT); //db_query($qy); 
     while ($r = oci_fetch_array($ext)) {
-        $rows[]=array($r['ATTR_NOME'],$r['APAT_VALO']);
+        $rows[] = array($r['ATTR_NOME'], $r['APAT_VALO']);
     }
-    if(!isset($rows)){
+    if (!isset($rows)) {
         $output.='Nessuna parametro esteso';
-    }
-     else {
+    } else {
         $output.=theme('table', array('Parametro esteso', 'valore'), $rows, array(), 'Parametri estesi');
     }
     return $output;
@@ -665,16 +659,16 @@ function scadenze_preventiva($appa_codi = NULL) {
     oci_execute($qy, OCI_DEFAULT); //db_query($qy); 
     while ($rs = oci_fetch_array($qy)) {
         //calcolo livello di allarme
-        $alert = (int)ceil((time() - strtotime($rs['SCMP_DATA_MAXI'])) / 3600 / 24);
+        $alert = (int) ceil((time() - strtotime($rs['SCMP_DATA_MAXI'])) / 3600 / 24);
         //creazione tabella
         foreach ($rs as $field => $value) {
             if (!is_numeric($field)) {
 //                $value = sostituzione_ettichette($field, $value);
                 if ($field == 'APMP_STAT')
-                    $row[] = array('data' => $value, 
+                    $row[] = array('data' => $value,
                         'class' => ($alert > 30 ? 'alert' : ($alert > 7 ? 'warning' : 'ok')),
-                        'title'=> ($alert > 30 ? 'Ritardo superiore a un mese ('.$alert.' gg)' : ($alert > 7 ? 'ritardo superiore a una settimana('.$alert.' gg)' : '')),
-                        'value'=> $value );
+                        'title' => ($alert > 30 ? 'Ritardo superiore a un mese (' . $alert . ' gg)' : ($alert > 7 ? 'ritardo superiore a una settimana(' . $alert . ' gg)' : '')),
+                        'value' => $value);
                 else
                     $row[] = array('data' => $value); //, 'class' => $field, 'value' => $value);
             }
@@ -741,8 +735,7 @@ function search_inventario($inventario) {
             $list[] = " APPA_CODI_INVE LIKE '%$ele%' ";
         }
         $inventario = implode(' OR ', $list);
-    }
-    else
+    } else
         $inventario = " APPA_CODI_INVE LIKE '%$inventario%' ";
     $qy = oci_parse($conn, "SELECT * FROM SI3C.T_APPA 
                          WHERE $inventario");
@@ -845,9 +838,9 @@ function grafico_richieste_intervento($appacodi) {
     if (!isset($dt))
         return;
 
-    $data['plots']['graph']['data'][] = $dt;
-    $data['plots']['graph']['data'][] = $dc;
-    $data['plots']['graph']['settings'] = array(
+    $data['data'][] = $dt;
+    $data['data'][] = $dc;
+    $data['options'] = array(
         'title' => 'distribuzione manutenzioni',
         'seriesColors' => array('#d46c6c', '#d4936c', '#d2d46c', '#77d46c', '#6c83d4', '#c1c2d0'),
         'series' => array(
@@ -862,12 +855,12 @@ function grafico_richieste_intervento($appacodi) {
             'xaxis' => array(
                 'renderer' => '$jq.jqplot.DateAxisRenderer',
                 'tickOptions' => array(
-                    array('formatString' => '%b&nbsp;%#d')
+                    array('formatString' => '%b %#d')
                 ),
             ),
             'yaxis' => array(
                 'tickOptions' => array(
-                    'formatString' => '%d&nbsp;gg'
+                    'formatString' => '%d gg'
                 ),
 //                    'min'=>-1,
 //                    'max'=>$max +2,
@@ -891,7 +884,7 @@ function grafico_richieste_intervento($appacodi) {
         ),
         'legend' => array('show' => true, 'location' => 's', 'placement' => 'outsideGrid')
     );
-    drupal_add_js($data, 'setting');
+    return $data;
 }
 
 function grafico_interventi_aperti() {
@@ -913,7 +906,7 @@ function grafico_interventi_aperti() {
     }
     if (!isset($d))
         return;
-    $data['plots']['activity']['data'][] = $d;
+    $data['data'][] = $d;
     unset($d);
     $qy = oci_parse($conn, "SELECT COUNT(RIIN_STAT) AS C,
                             to_char(RIIN_DATA_FINE,'YYYY-MM-DD') AS D
@@ -928,8 +921,8 @@ function grafico_interventi_aperti() {
 
         $d[] = array($rw['D'], (integer) $rw['C'],);
     }
-    $data['plots']['activity']['data'][] = $d;
-    $data['plots']['activity']['settings'] = array(
+    $data['data'][] = $d;
+    $data['options'] = array(
         'title' => 'Storico interventi aperti ultimi 2 anni',
         'seriesColors' => array('#d46c6c', '#d2d46c', '#77d46c', '#6c83d4', '#c1c2d0'),
         'series' => array(
@@ -976,9 +969,9 @@ function grafico_interventi_aperti() {
         ),
         'legend' => array('show' => true, 'location' => 'ne')//, 'placement'=>'outsideGrid')
     );
-    drupal_add_js($data, 'setting');
+//    drupal_add_js($data, 'setting');
 
-    return '<div id="activity"></div>';
+    return $data;
 }
 
 function conteggi_generali($from_year = NULL) {
@@ -1019,3 +1012,25 @@ function get_collaudi($appa_codi) {
     return '<p>Non disponibile</p>';
 }
 
+function ajax_plot($parm = NULL, $options = NULL) {
+    switch ($parm) {
+        case 'programmata':
+            include_once 'gestione_manutenzione.php';
+            $data = grafico_manutenzioni_programmate();
+            break;
+        case 'interventi_aperti':
+            $data = grafico_interventi_aperti();
+            break;
+        case 'grafici_appareccchiatura':
+            $data = grafico_richieste_intervento($options);
+            break;
+        case 'grafici_disponibilita':
+            include_once 'risk-analyzer.php';
+            $data = MT_stats($options);
+            $data = grafico_Mean_Times(unserialize($data['data']));
+        break;
+    }
+
+    return drupal_json($data);
+    exit();
+}

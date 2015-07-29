@@ -1201,7 +1201,8 @@ function sommario_programmate($detail = NULL) {
             $rows[] = $row;
             unset($row);
         }
-        return grafico_manutenzioni_programmate().'<br/>'.theme('table', array('crticit&agrave;', 'mandir mancost', array('class' => 'number', 'data' => 'totali'),
+//        drupal_add_js(grafico_manutenzioni_programmate(), 'setting');
+        return '<div class="plot" src="tested/plot/programmata/null"></div><br/>'.theme('table', array('crticit&agrave;', 'mandir mancost', array('class' => 'number', 'data' => 'totali'),
             array('class' => 'number', 'data' => 'Verifiche<br/>sicurezza'), array('class' => 'number', 'data' => '%'), array('class' => 'number', 'data' => 'Manutenzioni<br/>preventive'), array('class' => 'number', 'data' => '%'),
             array('class' => 'number', 'data' => 'Controlli<br/>qualit&agrave;'), array('class' => 'number', 'data' => '%')), $rows, array(), 'Conteggi manuenzioni programamte fuori tempi massimi / totali specifici');
     } else {
@@ -1287,7 +1288,7 @@ function grafico_manutenzioni_programmate() {
                             WHERE VESI_CANC='N' AND VESI_STAT in ('A','C','V') AND VESI_INDI_COLL='N' 
                         )   -- VERIFICHE sicurezza 
                         UNION 
-                        ( SELECT APPA_CODI,  TO_CHAR(VESI_DATA,'YYYY-MM-DD') AS D, 'Contr.Qualit&agrave;' AS T FROM SI3C.SN_T_VESI  
+                        ( SELECT APPA_CODI,  TO_CHAR(VESI_DATA,'YYYY-MM-DD') AS D, 'Controllo Qual.' AS T FROM SI3C.SN_T_VESI  
                             WHERE VESI_CANC='N' AND VESI_STAT in ('A','C','V') AND VESI_INDI_COLL='N' AND VESI_INDI_PRES = 'S'
                         )  -- VERIFICHE FUNZIONALI O CONTROLLI DI QUALITà
                         UNION
@@ -1309,12 +1310,12 @@ function grafico_manutenzioni_programmate() {
         return;
     foreach ($d as $M => $T) {
         foreach ($T as $l => $c) {
-            $data['plots']['activity']['data'][] = $c;
+            $data['data'][] = $c;
             $series[] = array('label' => $l . '(' . $M . ')');
         }
     }
 
-    $data['plots']['activity']['settings'] = array(
+    $data['options'] = array(
         'title' => 'Manutenzioni programmate effettuate dal 01/01/2014',
 //        'seriesColors' => array('#d46c6c', '#d2d46c', '#77d46c', '#6c83d4', '#c1c2d0'),
         'series' => $series,
@@ -1361,7 +1362,7 @@ function grafico_manutenzioni_programmate() {
             'seriesToggle'=>'normal',
             )
     );
-    drupal_add_js($data, 'setting');
-
-    return '<div id="activity"></div>';
+    return $data;
 }
+
+
