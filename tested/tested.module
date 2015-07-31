@@ -257,8 +257,7 @@ function get_f_address($id) {
                 '<br/>tel.: <a href="tel:' . preg_replace('/[^+0-9]+/', '', $r->Telefono_1) . '">' . $r->Telefono_1 . '</a> 
                  <br/>fax.:<a href="fax:' . preg_replace('/[^+0-9]+/', '', $r->Telefax) . '">' . $r->Telefax . '</a> 
                 <br/>mail:<a href=\"mailto:' . $r->email . '\">' . $r->email . '</a>';
-    }
-    else
+    } else
         return '';
 }
 
@@ -469,8 +468,7 @@ function built_items_table($node) {
             if ($lab == 'nid') {
                 //$title=db_result(db_query("SELECT title FROM {node} WHERE nid=%d",$val));
                 $rw[] = nl($val);
-            }
-            else
+            } else
                 $rw[] = $val;
         }
         $first = false;
@@ -649,7 +647,7 @@ function tested_menu() {
         'title' => 'Lista interventi',
         //'page callback' => 'drupal_get_form',
         'page callback' => 'planned_maintenance_detail',
-        'page arguments' => array(2,3,4),
+        'page arguments' => array(2, 3, 4),
         'access arguments' => array(_VIEW_TESTED),
         'file' => 'gestione_manutenzione.php',
         'type' => MENU_CALLBACK,
@@ -687,7 +685,7 @@ function tested_menu() {
         'title' => 'ajax plot',
         'page callback' => 'ajax_plot',
         'file' => 'si3c_lnk.php.inc',
-        'page arguments' => array(2,3),
+        'page arguments' => array(2, 3),
         'access arguments' => array(_VIEW_TESTED),
         'type' => MENU_CALLBACK,
     );
@@ -714,8 +712,8 @@ function tested_menu() {
     );
     $items['tested/canone/edit/%'] = array(
         'title' => 'Modifica canoni',
-        'page callback' =>'drupal_get_form',
-        'page arguments' => array( 'fee_edit_form', 3),
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('fee_edit_form', 3),
         'access arguments' => array(_MANGE_TESTED),
         'type' => MENU_NORMAL_ITEM,
         'file' => 'canone.php.inc',
@@ -1398,8 +1396,7 @@ function template_preprocess_tested_node_form(&$variables) {
     $variable_list = '';
     if ($form = &$variables['form']['tested']) {//seleziona solo i campi aggiunti dal modulo custom
         foreach (element_children($form) as $elm) {
-            $variables[$elm]
-                    = drupal_render($form[$elm]);
+            $variables[$elm] = drupal_render($form[$elm]);
             $variable_list.= '$' . $elm_name . "\n";
         }
         $variables['variable_list'] = $variable_list;
@@ -1465,4 +1462,20 @@ function search_catalogs($keys) {
         $find+=search_description($keys);
     }
     return $find;
+}
+
+function riassuntivo_prove() {
+    $header[] = array('data' => 'ID GIT', 'field' => 'p.nid');
+    $header[] = array('data' => 'Descrizione', 'field' => 'p.sistema-apparecchiatura');
+    $header[] = array('data' => 'Struttura', 'field' => 's.description');
+    $header[] = array('data' => 'Data', 'field' => 'p.`data ordine`');
+    $qy = "SELECT p.nid,p.sistema-apparecchiatura,p.`data ordine`"
+            . " FROM grat.`principale di collaudo` p "
+            . "LEFT JOIN " . _STRUCT_TABLE . " s ON s.ID=p.`reparto installazione`"
+            . " WHERE `tipo acquisizione`=5 " . tablesort_sql($header);
+    $qy = db_query($qy);
+    while ($rw = db_fetch_object($qy)) {
+        $rows[]=(array) $rw;
+    }
+    return theme('table',$header,$rows);
 }
